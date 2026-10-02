@@ -25,7 +25,8 @@ ask() {  # works even with "curl | bash" (reads from the terminal)
 }
 
 OS="$(uname -s)"
-bold "== FareHunter — $(m "installation" "instalação" "instalación") ($OS) =="
+case "$OS" in Darwin) OS_NOME="macOS" ;; Linux) OS_NOME="Linux" ;; *) OS_NOME="$OS" ;; esac
+bold "== FareHunter — $(m "installation" "instalação" "instalación") ($OS_NOME) =="
 echo
 
 # 1) uv (runs the Python cost engine; installs Python by itself)
@@ -114,7 +115,7 @@ echo
 if [ "$OS" = "Linux" ]; then
   bold "$(m "Done. Next: open a terminal in any folder, run 'claude' (log in the first time) and type:" "Pronto. Próximo passo: abra um terminal numa pasta qualquer, rode 'claude' (faça login na primeira vez) e digite:" "Listo. Siguiente paso: abre una terminal en cualquier carpeta, ejecuta 'claude' (inicia sesión la primera vez) y escribe:")"
 else
-  bold "$(m "Done. Next, in Claude's Code tab:" "Pronto. Próximo passo, na aba Code do Claude:" "Listo. Siguiente paso, en la pestaña Code de Claude:")"
+  bold "$(m "Done. Next, open Claude (the Code tab in Claude Desktop, or run 'claude' in a terminal) and type:" "Pronto. Próximo passo: abra o Claude (aba Code do Claude Desktop, ou rode 'claude' no terminal) e digite:" "Listo. Siguiente paso: abre Claude (pestaña Code de Claude Desktop, o ejecuta 'claude' en una terminal) y escribe:")"
 fi
 echo "   /farehunter:setup     $(m "→ checks everything and explains how to fix what is missing" "→ confere tudo e ensina a resolver o que faltar" "→ revisa todo y explica cómo resolver lo que falte")"
 echo "   /farehunter:profile   $(m "→ your airports and miles programs (once)" "→ seus aeroportos e programas de milhas (1 vez)" "→ tus aeropuertos y programas de millas (una vez)")"

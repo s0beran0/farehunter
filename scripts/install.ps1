@@ -74,7 +74,7 @@ if (Has "claude") {
 }
 
 Write-Host ""
-Write-Host (M "Done. Next, in Claude's Code tab:" "Pronto. Próximo passo, na aba Code do Claude:" "Listo. Siguiente paso, en la pestaña Code de Claude:") -ForegroundColor Cyan
+Write-Host (M "Done. Next, open Claude (the Code tab in Claude Desktop, or run 'claude' in a terminal) and type:" "Pronto. Próximo passo: abra o Claude (aba Code do Claude Desktop, ou rode 'claude' no terminal) e digite:" "Listo. Siguiente paso: abre Claude (pestaña Code de Claude Desktop, o ejecuta 'claude' en una terminal) y escribe:") -ForegroundColor Cyan
 Write-Host "   /farehunter:setup     $(M '-> checks everything and explains how to fix what is missing' '-> confere tudo e ensina a resolver o que faltar' '-> revisa todo y explica cómo resolver lo que falte')"
 Write-Host "   /farehunter:profile   $(M '-> your airports and miles programs (once)' '-> seus aeroportos e programas de milhas (1 vez)' '-> tus aeropuertos y programas de millas (una vez)')"
 Write-Host "   /farehunter:search    $(M 'São Paulo to Recife Nov 20, back Nov 27' 'São Paulo para Recife 20/11, volta 27/11' 'São Paulo a Recife 20/11, vuelta 27/11')"
