@@ -175,3 +175,24 @@ def test_google_rate_limit_pauses_further_calls(tmp_path, monkeypatch):
     with _pytest.raises(gf.LimiteGoogle, match="paused"):
         gf._antes_de_chamar()
     gf._apos_erro(RuntimeError("HTTP 500"))  # other errors don't trigger the pause logic
+
+
+def test_served_hubs_keep_only_airports_with_flights(monkeypatch, tmp_path):
+    from fontes import rotas
+    from infra.cache import Cache
+
+    monkeypatch.setattr(rotas, "aeroportos_do_pais", lambda pais, **k: [
+        {"iata": "GRU", "nome": "", "voos_semanais": 852}, {"iata": "CNF", "nome": "", "voos_semanais": 329},
+        {"iata": "FOR", "nome": "", "voos_semanais": 116}, {"iata": "XXX", "nome": "", "voos_semanais": 10}])
+
+    def direto(hub, destino, data, moeda, pax, trecho):
+        if hub != "GRU":
+            return [], None
+        return [Opcao(fonte="kiwi", tipo="dinheiro", trecho=trecho, preco=2000,
+                      pernas=[Perna("GRU", "MIA", data, cia="AA", voos=["AA 930"])])], None
+
+    monkeypatch.setattr(rotas, "_direto_kiwi", direto)
+    monkeypatch.setattr(rotas, "_rota_seats", lambda h, d, c: ["american"] if h == "FOR" else [])
+    hubs, ops = rotas.hubs_servidos("MIA", "BR", "2026-11-20", excluir={"BSB"}, cache=Cache(tmp_path))
+    assert [h["iata"] for h in hubs] == ["GRU", "FOR"]  # CNF has nothing; XXX is too small to try
+    assert hubs[0]["direto"] and not hubs[1]["direto"] and len(ops) == 1

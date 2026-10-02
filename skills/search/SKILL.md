@@ -57,7 +57,7 @@ Run it whenever the trip is **international or long-haul**, or the origin is not
 ```bash
 uv run --project "${CLAUDE_PLUGIN_ROOT}" farehunter coletar posicionamento --run "$RUN"
 ```
-It checks which gateway airports of the country (config/hubs.yaml, or `--hubs` from `run novo`) fly to the destination and how cheaply, details the best ones with specific flights, and fetches the positioning flights from/to the origin. The engine then composes separate tickets with a minimum connection time (`conexao_bilhetes_separados_min`, default 3 h) and flags the risks.
+It finds which of the country's busiest airports (Seats.aero airport traffic; or `--hubs` from `run novo`) actually fly **nonstop** to the destination (Kiwi nonstop check; Seats.aero tracked award routes as a second signal), stores those nonstop flights as validated options, and fetches the positioning flights from/to the origin. Airports without service are never searched. Its JSON output lists the hubs found: mention them in one line (e.g. "nonstop to Miami from GRU and GIG"). The engine then composes separate tickets with a minimum connection time (`conexao_bilhetes_separados_min`, default 3 h) and flags the risks.
 
 ## 5. Validate until the winner is real (mandatory loop)
 Calendar prices (no specific flight) and Seats.aero awards (cache) are **hints, never answers**. Repeat at most 3 rounds:

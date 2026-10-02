@@ -39,13 +39,13 @@ def buscar(
     origem: str, destino: str, ida: str, volta: str | None = None, passageiros: int = 1, flex_dias: int = 0,
     cabine: str = "economy", bagagem_despachada: bool = False, cache: Cache | None = None,
     http: httpx.Client | None = None, moeda: str = "BRL", idioma: str = "en",
-    ida_ate: str | None = None, noites: tuple[int, int] | None = None,
+    ida_ate: str | None = None, noites: tuple[int, int] | None = None, sem_escalas: bool = False,
 ) -> list[Opcao]:
     """`ida_ate` searches departures from `ida` to `ida_ate`; `noites` = (min, max) nights for a round trip
     (then `volta` is ignored)."""
     cache = cache or Cache()
     chave = chave_busca(origem, destino, ida, volta, passageiros, flex_dias, cabine, bagagem_despachada, moeda,
-                        ida_ate, noites)
+                        ida_ate, noites, sem_escalas)
     if (hit := cache.get(FONTE, chave)) is not None:
         return normalizar(hit, passageiros)
 
@@ -63,6 +63,8 @@ def buscar(
         args["returnDate"] = _dmy(volta)
         if flex_dias:
             args["returnDateFlexDays"] = flex_dias
+    if sem_escalas:
+        args["max_sector_stopovers"] = 0
     if bagagem_despachada:
         args["adults_hold_bags"] = [1] * passageiros
     try:

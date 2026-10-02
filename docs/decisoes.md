@@ -152,3 +152,9 @@ README (instalação, uso, cálculo, limitações, como trocar uma fonte) e CLAU
   - Smiles, LATAM e Azul abrem a busca já com rota e data.
   - Os outros programas abrem a página de resgates oficial; algumas URLs só tiveram o domínio confirmado, porque os sites bloqueiam scripts.
 - **Comentários e docstrings em inglês** (pedido do usuário). Os identificadores continuam em português.
+
+## Descoberta de hubs com voo real (2026-10-02)
+- **Lista de aeroportos do país:** vem do `search_airports` do Seats.aero (MCP anônimo), ordenada por voos semanais, e funciona para qualquer país. O `config/hubs.yaml` fica só como fallback sem internet.
+- **Teste de voo direto:** uma busca no Kiwi por aeroporto com `max_sector_stopovers=0`, 4 em paralelo. BSB→MIA levou 9 s para 14 aeroportos e achou GRU e GIG com voo direto, com 56 voos válidos já com preço. Aeroportos sem serviço não recebem nenhuma busca, o que também poupa o Google, que estava dando 429.
+- **Lacunas do Kiwi:** ele não vende todas as cias (ex.: LATAM). Por isso o `list_routes(origem, destino)` do Seats.aero mantém como candidato o aeroporto com rota de resgate rastreada, marcado como "pode ter conexão".
+- **Cache:** aeroportos ficam em cache por 30 dias e rotas por 7 dias.

@@ -16,7 +16,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 from fontes import google_flights, kiwi
-from infra.config import MODELOS_DIR, carregar_perfil, carregar_yaml
+from infra.config import carregar_perfil
 from infra.runs import ler_pedido, registrar_falha, registrar_opcoes
 from normalizacao.schema import Opcao
 
@@ -210,69 +210,54 @@ def coletar_milhas(run: Path) -> dict:
     return resumo
 
 
-def hubs_candidatos(p: dict) -> list[str]:
-    """Gateway airports to try for separate tickets: the request's own list, else the country's list in config/hubs.yaml."""
-    excluir = set(p["origens"]) | set(p["destinos"])
-    hubs = p.get("hubs") or (carregar_yaml(MODELOS_DIR / "hubs.yaml").get(p.get("pais", "BR")) or [])
-    return [h for h in dict.fromkeys(hubs) if h not in excluir]
-
-
-def _datas_mais_baratas(opcoes: list[Opcao], n: int) -> list[str]:
-    melhores: dict[str, float] = {}
-    for o in opcoes:
-        if o.preco is not None:
-            melhores[o.data_ida] = min(o.preco, melhores.get(o.data_ida, float("inf")))
-    return [d for d, _ in sorted(melhores.items(), key=lambda x: x[1])[:n]]
-
-
 def coletar_posicionamento(run: Path, max_hubs: int = MAX_HUBS) -> dict:
-    """Separate tickets through a hub. 1) calendars hub→destination (and back) for every candidate hub;
-    2) the cheapest hubs get per-date searches with specific flights, plus the positioning flights from/to
-    the origin on the same day (and the day before / after); 3) awards on those legs via Seats.aero."""
+    """Separate tickets through a hub.
+    1) Which airports of the country fly nonstop to the destination (fontes/rotas.py: busiest airports of the
+       country × Kiwi nonstop check, plus Seats.aero tracked award routes). Those nonstop flights are stored as
+       validated cash options, so the hub→destination legs don't need Google.
+    2) For the cheapest hubs: positioning flights origin→hub (same day and the day before) and hub→origin on the
+       way back (same day and the day after), from Kiwi and, when available, Google.
+    3) Awards on those legs via Seats.aero."""
+    from fontes import rotas
     from infra import perfil_io
 
     p = ler_pedido(run)
     pd = pedido_de(p)
     pax, cab = p["passageiros"], p.get("cabine", "economy")
-    loc, _ = _locais(p)
-    hubs = hubs_candidatos(p)
-    if not hubs:
-        return {"skipped": "no candidate hubs (pass --hubs or add the country to config/hubs.yaml)"}
+    loc, kloc = _locais(p)
+    origem, destino = p["origens"][0], p["destinos"][0]
     ida_ini, ida_fim = pd.janela_ida()
     volta = pd.janela_volta()
-    origem, destino = p["origens"][0], p["destinos"][0]
+    centro_ida = _iso(ida_ini + (ida_fim - ida_ini) / 2)
+    centro_volta = _iso(volta[0] + (volta[1] - volta[0]) / 2) if volta else None
 
-    precos: dict[str, float] = {}
-    grades: dict[str, tuple[list[Opcao], list[Opcao]]] = {}
-    for h in hubs:
-        try:
-            ida = google_flights.grade(h, destino, _iso(ida_ini), _iso(ida_fim), pax, cabine=cab, **loc)
-            vol = google_flights.grade(destino, h, _iso(volta[0]), _iso(volta[1]), pax, cabine=cab, trecho="volta",
-                                       **loc) if volta else []
-        except Exception as e:
-            registrar_falha(run, "posicionamento", f"grade {h}: {e}")
-            continue
-        if not ida or (volta and not vol):
-            continue
-        grades[h] = (ida, vol)
-        precos[h] = min(o.preco for o in ida) + (min(o.preco for o in vol) if vol else 0)
-    escolhidos = sorted(precos, key=precos.get)[:max_hubs]
+    hubs, diretos = rotas.hubs_servidos(destino, p.get("pais", "BR"), centro_ida,
+                                        excluir=set(p["origens"]) | set(p["destinos"]), moeda=p.get("moeda", "BRL"),
+                                        pax=pax, data_volta=centro_volta, candidatos=p.get("hubs") or None)
+    n = registrar_opcoes(run, "kiwi", diretos) if diretos else 0
+    escolhidos = [h["iata"] for h in hubs if h["direto"]][:max_hubs]
 
-    n = 0
-    for h in escolhidos:
-        ida, vol = grades[h]
-        for d in _datas_mais_baratas(ida, 2):
-            n += _tentar(run, "posicionamento", f"{h}-{destino} {d}",
-                         lambda d=d: google_flights.buscar_data(h, destino, d, None, pax, cab, **loc))
+    def datas_do_hub(trecho: str) -> list[str]:
+        precos: dict[str, float] = {}
+        for o in diretos:
+            if o.trecho == trecho and (o.pernas[0].origem in escolhidos or o.pernas[-1].destino in escolhidos):
+                precos[o.data_ida] = min(o.preco or 1e18, precos.get(o.data_ida, 1e18))
+        return [d for d, _ in sorted(precos.items(), key=lambda x: x[1])[:2]]
+
+    for d in datas_do_hub("ida"):
+        for h in escolhidos:
             for dp in (d, _iso(date.fromisoformat(d) - timedelta(days=1))):
+                n += _tentar(run, "kiwi", f"posicionamento {origem}-{h} {dp}",
+                             lambda dp=dp, h=h: kiwi.buscar(origem, h, dp, None, pax, 0, cab, **kloc))
                 n += _tentar(run, "posicionamento", f"{origem}-{h} {dp}",
-                             lambda dp=dp: google_flights.buscar_data(origem, h, dp, None, pax, cab, **loc))
-        for d in _datas_mais_baratas(vol, 2):
-            n += _tentar(run, "posicionamento", f"{destino}-{h} {d}",
-                         lambda d=d: google_flights.buscar_data(destino, h, d, None, pax, cab, **loc), trecho="volta")
+                             lambda dp=dp, h=h: google_flights.buscar_data(origem, h, dp, None, pax, cab, **loc))
+    for d in datas_do_hub("volta") if volta else []:
+        for h in escolhidos:
             for dp in (d, _iso(date.fromisoformat(d) + timedelta(days=1))):
+                n += _tentar(run, "kiwi", f"posicionamento {h}-{origem} {dp}",
+                             lambda dp=dp, h=h: kiwi.buscar(h, origem, dp, None, pax, 0, cab, **kloc), trecho="volta")
                 n += _tentar(run, "posicionamento", f"{h}-{origem} {dp}",
-                             lambda dp=dp: google_flights.buscar_data(h, origem, dp, None, pax, cab, **loc),
+                             lambda dp=dp, h=h: google_flights.buscar_data(h, origem, dp, None, pax, cab, **loc),
                              trecho="volta")
 
     programas = programas_para_busca(perfil_io.carregar_bruto())
@@ -284,9 +269,7 @@ def coletar_posicionamento(run: Path, max_hubs: int = MAX_HUBS) -> dict:
             n += _milhas_janela(run, p, "volta", [destino], escolhidos, *volta, programas, "destino→hubs")
             n += _milhas_janela(run, p, "volta", escolhidos, [origem], volta[0], volta[1] + timedelta(days=1),
                                 programas, "hubs→origem")
-    return {"hubs_testados": len(precos), "hubs_detalhados": escolhidos,
-            "preco_indicativo_por_hub": {h: round(precos[h], 2) for h in sorted(precos, key=precos.get)},
-            "opcoes": n}
+    return {"hubs": hubs, "hubs_detalhados": escolhidos, "opcoes": n}
 
 
 def _analisar_run(run: Path, somente_validadas: bool):
