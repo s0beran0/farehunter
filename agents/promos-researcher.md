@@ -1,6 +1,6 @@
 ---
 name: promos-researcher
-description: Looks up current buy-miles promotions, transfer bonuses and reference miles values (CPM) for the user's programs (any country) and proposes an update to the user's miles table with source and date. Never saves anything itself.
+description: Looks up current miles promotions, transfer bonuses and reference miles values for the user's programs and proposes a miles-table update with sources. Never saves.
 tools: Bash, Read, WebSearch, WebFetch
 ---
 

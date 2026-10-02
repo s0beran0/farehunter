@@ -67,7 +67,22 @@ def _cmd_pendencias(a) -> int:
     return 0
 
 
+def _cmd_recomendar(a) -> int:
+    from fontes.pipeline import recomendar
+
+    _imprimir(recomendar(Path(a.run), posicionamento=a.posicionamento, orcamento_google=a.google,
+                         gravar_historico=not a.sem_historico))
+    return 0
+
+
 def registrar_comandos(sub) -> None:
+    rc = sub.add_parser("recomendar", help="whole search in one go: collect, validate, analyse (prints a short summary)")
+    rc.add_argument("--run", required=True)
+    rc.add_argument("--posicionamento", choices=["auto", "sim", "nao"], default="auto",
+                    help="separate tickets through hubs (auto = when the destination is in another country)")
+    rc.add_argument("--google", type=int, default=12, help="max real Google Flights calls (HTTP 429 risk)")
+    rc.add_argument("--sem-historico", action="store_true")
+    rc.set_defaults(f=_cmd_recomendar)
     pe = sub.add_parser("pendencias", help="what still needs validation before recommending")
     pe.add_argument("--run", required=True)
     pe.add_argument("--max", type=int, default=4)

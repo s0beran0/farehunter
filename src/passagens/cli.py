@@ -173,67 +173,12 @@ def cmd_perfil(a) -> int:
 
 
 def cmd_analisar(a) -> int:
-    run = Path(a.run)
-    dados_pedido = _ler_json(run / "pedido.json")
-    i18n.definir(dados_pedido.pop("idioma", None))
-    pedido = Pedido(**dados_pedido)
-    i18n.definir_moeda(pedido.moeda)
-    perfil = carregar_perfil()
-    from infra.cambio import padrao as cambio_padrao
+    from passagens.analise import analisar_execucao
 
-    milheiro, avisos_cambio = carregar_milheiro().na_moeda(pedido.moeda, cambio_padrao())
-    saldos = runs.ler_saldos(run)
-    aviso_saldos = runs.aplicar_saldos(perfil, saldos)
-    brutos = []
-    for arq in sorted((run / "opcoes").glob("*.json")):
-        brutos.extend(_ler_json(arq))
-    opcoes, avisos_carga = carregar_opcoes(brutos)
-
-    resultado = analisar(opcoes, pedido, perfil, milheiro, hoje=date.today(), somente_validadas=not a.exploratorio)
-    resultado.avisos.extend(avisos_carga[:5])
-    if aviso_saldos:
-        resultado.avisos.insert(0, aviso_saldos)
-    resultado.avisos.extend(f"FX: {a}" for a in avisos_cambio)
-    st = runs.status(run)
-    fontes_ok = [f for f, s in st.items() if s.get("ok")]
-    falhas = {f: s.get("motivo") or "sem detalhe" for f, s in st.items() if not s.get("ok")}
-    for f, s in st.items():
-        if s.get("ok") and s.get("motivo"):
-            resultado.avisos.append(f"{f}: {s['motivo']}")
-
-    comparacao = historico.comparar_com_anterior(opcoes, moeda_atual=pedido.moeda) if not a.sem_historico else []
-    texto = gerar_relatorio(resultado, fontes_ok, falhas, top=a.top, milheiro=milheiro, saldos=saldos)
-    if comparacao:
-        texto += f"\n\n{i18n.t('rel.desde_ultima')}\n\n" + "\n".join(f"- {m}" for m in comparacao[:15])
-    (run / "relatorio.md").write_text(texto, encoding="utf-8")
-
-    ranking = [
-        {
-            "posicao": i,
-            "descricao": c.descricao(),
-            "custo": c.custo,
-            "economia": resultado.economia(c),
-            "data_ida": c.data_ida,
-            "data_volta": c.data_volta,
-            "estrategias": sorted(c.estrategias),
-            "riscos": c.riscos,
-            "opcoes": [
-                {"id": o.id, "fonte": o.fonte, "tipo": o.tipo, "programa": o.programa, "trecho": o.trecho,
-                 "pernas": [{"origem": p.origem, "destino": p.destino, "data": p.data, "partida": p.partida,
-                             "voos": p.voos} for p in o.pernas],
-                 "preco": o.preco, "milhas": o.milhas, "taxas": o.taxas,
-                 "confirmado_ao_vivo": o.confirmado_ao_vivo, "link": o.link}
-                for o in c.opcoes
-            ],
-            "programas_milhas_cache": [o.programa for o in c.opcoes if o.tipo == "milhas" and not o.confirmado_ao_vivo],
-        }
-        for i, c in enumerate(resultado.principais[:20], 1)
-    ]
-    (run / "ranking.json").write_text(json.dumps(ranking, ensure_ascii=False, indent=1), encoding="utf-8")
-    if not a.sem_historico:
-        historico.gravar(opcoes, moeda=pedido.moeda)
+    texto, ranking = analisar_execucao(Path(a.run), top=a.top, exploratorio=a.exploratorio,
+                                       gravar_historico=not a.sem_historico)
     if a.json:
-        _json_out({"relatorio": str(run / "relatorio.md"), "top": ranking[: a.top]})
+        _json_out({"relatorio": str(Path(a.run) / "relatorio.md"), "top": ranking[: a.top]})
     else:
         print(texto)
     return 0

@@ -11,6 +11,7 @@ and the subagent records the source as unavailable.
 from __future__ import annotations
 
 import json
+import threading
 import time
 from datetime import date, timedelta
 from urllib.parse import quote
@@ -23,6 +24,17 @@ from normalizacao.schema import Opcao, Perna
 INTERVALO_MIN_S = 2.0
 PAUSA_APOS_429_S = 30 * 60
 ESTADO_FREIO = CACHE_DIR / "google_freio.json"
+# Per-search budget of real Google calls (cache hits are free). None = unlimited. Set by the search pipeline.
+_orcamento: int | None = None
+
+
+def definir_orcamento(n: int | None) -> None:
+    global _orcamento
+    _orcamento = n
+
+
+def orcamento_restante() -> int | None:
+    return _orcamento
 
 
 class LimiteGoogle(RuntimeError):
@@ -44,12 +56,25 @@ def _gravar_freio(estado: dict) -> None:
         pass
 
 
+_TRAVA = threading.Lock()  # one Google call at a time, even when collectors run in parallel
+
+
 def _antes_de_chamar() -> None:
+    with _TRAVA:
+        _antes_de_chamar_sem_trava()
+
+
+def _antes_de_chamar_sem_trava() -> None:
+    global _orcamento
     estado = _ler_freio()
     agora = time.time()
-    if estado.get("bloqueado_ate", 0) > agora:
+    if estado.get("bloqueado_ate", 0) > agora:  # checked first: a paused call doesn't spend the budget
         minutos = round((estado["bloqueado_ate"] - agora) / 60)
         raise LimiteGoogle(f"Google Flights is rate-limiting this connection (HTTP 429); paused for ~{minutos} more min")
+    if _orcamento is not None:
+        if _orcamento <= 0:
+            raise LimiteGoogle("Google Flights call budget for this search is used up (kept low to avoid HTTP 429)")
+        _orcamento -= 1
     espera = estado.get("ultima", 0) + INTERVALO_MIN_S - agora
     if espera > 0:
         time.sleep(espera)

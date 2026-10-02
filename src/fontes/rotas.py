@@ -103,3 +103,18 @@ def hubs_servidos(destino: str, pais: str, data: str, excluir: set[str], moeda: 
     hubs.sort(key=lambda h: (not h["direto"], h["preco_min"] if h["preco_min"] is not None else float("inf")))
     return hubs, opcoes
 
+
+
+def pais_do_aeroporto(iata: str, cache: Cache | None = None) -> str | None:
+    """ISO country code of an airport (Seats.aero search_airports), cached for 30 days."""
+    cache = cache or Cache()
+    chave = chave_busca("pais", iata)
+    if (hit := cache.get("rotas", chave, ttl_horas=TTL_AEROPORTOS_H)) is not None:
+        return hit or None
+    try:
+        dados = json_do_resultado(chamar_tool(URL_SEATS, "search_airports", {"query": iata, "limit": 5}))
+        pais = next((a.get("country_code") for a in dados.get("airports") or [] if a.get("iata") == iata.upper()), None)
+    except Exception:
+        return None
+    cache.set("rotas", chave, pais or "")
+    return pais

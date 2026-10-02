@@ -142,7 +142,7 @@ def coletar_datas(run: Path, fontes: tuple[str, ...] = ("google_flights", "kiwi"
         duracoes = list(range(pd.noites_min, (pd.noites_max or pd.noites_min) + 1))
     elif janela_volta:
         base = (date.fromisoformat(p["data_volta"]) - date.fromisoformat(p["data_ida"])).days
-        duracoes = list(range(max(base - 2 * flex, 1), base + 2 * flex + 1))
+        duracoes = list(range(max(base - flex, 1), base + flex + 1))
     else:
         duracoes = []
     resumo: dict[str, int] = {}
@@ -265,16 +265,11 @@ def coletar_posicionamento(run: Path, max_hubs: int = MAX_HUBS) -> dict:
             for dp in (d, _iso(date.fromisoformat(d) - timedelta(days=1))):
                 n += _tentar(run, "kiwi", f"posicionamento {origem}-{h} {dp}",
                              lambda dp=dp, h=h: kiwi.buscar(origem, h, dp, None, pax, 0, cab, **kloc))
-                n += _tentar(run, "posicionamento", f"{origem}-{h} {dp}",
-                             lambda dp=dp, h=h: google_flights.buscar_data(origem, h, dp, None, pax, cab, **loc))
     for d in datas_do_hub("volta") if volta else []:
         for h in escolhidos:
             for dp in (d, _iso(date.fromisoformat(d) + timedelta(days=1))):
                 n += _tentar(run, "kiwi", f"posicionamento {h}-{origem} {dp}",
                              lambda dp=dp, h=h: kiwi.buscar(h, origem, dp, None, pax, 0, cab, **kloc), trecho="volta")
-                n += _tentar(run, "posicionamento", f"{h}-{origem} {dp}",
-                             lambda dp=dp, h=h: google_flights.buscar_data(h, origem, dp, None, pax, cab, **loc),
-                             trecho="volta")
 
     programas = programas_para_busca(perfil_io.carregar_bruto())
     if escolhidos:
@@ -361,4 +356,11 @@ def coletar_detalhes(run: Path, itens: list[dict] | None = None) -> dict:
             n += _tentar(run, "google_flights", f"detalhe {it['origem']}-{it['destino']} {it['data']}",
                          lambda it=it: google_flights.buscar_data(it["origem"], it["destino"], it["data"], None,
                                                                   pax, cab, **loc), trecho=it["trecho"])
+        if google_flights.orcamento_restante() == 0 or google_flights._ler_freio().get("bloqueado_ate", 0) > __import__("time").time():
+            # Google is paused or out of budget: Kiwi gives specific flights for the same date.
+            volta = it["volta"] if it["trecho"] == "ida_volta" else None
+            n += _tentar(run, "kiwi", f"detalhe {it['origem']}-{it['destino']} {it['data']}",
+                         lambda it=it, volta=volta: kiwi.buscar(it["origem"], it["destino"], it["data"], volta, pax, 0,
+                                                                cab, **_locais(p)[1]),
+                         trecho=None if volta else it["trecho"])
     return {"detalhados": len(itens[:MAX_DETALHES]), "opcoes": n}

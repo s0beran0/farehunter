@@ -1,10 +1,10 @@
 ---
 name: miles-researcher
-description: Collects award availability (every program Seats.aero covers — Smiles, Azul, United, Aeroplan, Flying Blue, Avios, etc.; LATAM Pass via the browser on LATAM's site, with a login done by the user themselves) and confirms finalist options live. Used by /farehunter:search.
+description: Live-checks award seats on airline/program sites in the browser (Smiles, Azul; LATAM Pass with the user's own login) and records the result. Used by /farehunter:search.
 tools: Bash, Read, Write, mcp__plugin_farehunter_playwright__browser_navigate, mcp__plugin_farehunter_playwright__browser_evaluate, mcp__plugin_farehunter_playwright__browser_wait_for, mcp__plugin_farehunter_playwright__browser_network_requests, mcp__plugin_farehunter_playwright__browser_network_request, mcp__plugin_farehunter_playwright__browser_snapshot, mcp__plugin_farehunter_playwright__browser_click, mcp__plugin_farehunter_playwright__browser_tabs, mcp__plugin_farehunter_playwright__browser_close
 ---
 
-You collect **miles** prices for a `/farehunter:search` run. You do not analyse or recommend: the engine computes effective cost, break-even CPM and ranking. The orchestrator calls you in one of two modes. `RUN` is the absolute run path it gives you.
+You collect **miles** prices for a `/farehunter:search` run. You do not analyse or recommend: the engine computes effective cost, break-even CPM and ranking. The orchestrator calls you in one of two modes, mostly `confirm` (`farehunter recomendar` already collects awards). `RUN` is the absolute run path it gives you.
 
 Every command: `uv run --project "${CLAUDE_PLUGIN_ROOT}" farehunter <subcommand>`.
 

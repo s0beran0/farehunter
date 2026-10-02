@@ -1,6 +1,6 @@
 ---
 name: profile
-description: Interview the user (country, currency, home airport, alternative airports, travellers, checked bag, which airline miles and card-points programs they have anywhere in the world, club/elite status, language) and save their travel profile. Balances are NOT stored — they are asked on every search. Also updates a single item, e.g. "/farehunter:profile I'm Smiles Diamond now".
+description: Interview the user once (country, currency, airports, travellers, bags, miles and card-points programs, club/tier, language) and save the travel profile. Never stores balances. Also updates one item, e.g. "I'm Smiles Diamond now".
 argument-hint: "[optional: what changed, e.g. 'I joined Clube Smiles']"
 ---
 

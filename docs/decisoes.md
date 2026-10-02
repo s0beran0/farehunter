@@ -158,3 +158,20 @@ README (instalação, uso, cálculo, limitações, como trocar uma fonte) e CLAU
 - **Teste de voo direto:** uma busca no Kiwi por aeroporto com `max_sector_stopovers=0`, 4 em paralelo. BSB→MIA levou 9 s para 14 aeroportos e achou GRU e GIG com voo direto, com 56 voos válidos já com preço. Aeroportos sem serviço não recebem nenhuma busca, o que também poupa o Google, que estava dando 429.
 - **Lacunas do Kiwi:** ele não vende todas as cias (ex.: LATAM). Por isso o `list_routes(origem, destino)` do Seats.aero mantém como candidato o aeroporto com rota de resgate rastreada, marcado como "pode ter conexão".
 - **Cache:** aeroportos ficam em cache por 30 dias e rotas por 7 dias.
+
+## Economia de tokens e Google mínimo (2026-10-02)
+- **Medição antes da mudança** (busca JFK→LHR):
+  - o orquestrador fez 24 turnos e leu ~1,1 milhão de tokens de contexto, cerca de 46 mil por turno;
+  - os 3 subagentes de coleta leram ~210 mil.
+  - O custo vinha do vaivém do orquestrador, não do tamanho das instruções.
+- **`farehunter recomendar`:** um comando faz a busca toda. Ele coleta em paralelo (dinheiro, datas, milhas e hubs quando o destino é em outro país), roda o ciclo de validação (pendências → detalhes) e a análise final, e devolve um JSON curto.
+  - Os subagentes de coleta (cash e dates researcher) foram removidos.
+  - O de milhas fica só para confirmar no navegador o que `precisam_navegador` listar.
+- **Skill de busca:** de 8,9 KB para ~2,8 KB. As descrições sempre carregadas caíram para ~230 caracteres cada.
+- **Google:** orçamento de 12 chamadas reais por busca (cache não conta; chamada barrada pela pausa também não).
+  - Chamadas serializadas, com 2 s de intervalo.
+  - Pausa de 30 min após HTTP 429.
+  - Os trechos de posicionamento usam só o Kiwi.
+  - Quando o Google está fora, os detalhes da data também vêm do Kiwi.
+  - Menos calendários ida e volta: só durações dentro de ±flex.
+- **Não automatizamos o "não sou um robô" do Google** nem tentamos driblar anti-bot. O extrator da Smiles em Python/Playwright foi testado e descartado: um Chromium limpo, com ou sem janela, fica parado no "Aguarde enquanto buscamos". A confirmação continua com o subagente de navegador, que usa o Chrome real do usuário.

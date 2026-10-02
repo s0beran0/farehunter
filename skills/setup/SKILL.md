@@ -1,6 +1,6 @@
 ---
 name: setup
-description: Check whether the computer is ready for FareHunter (uv, Node, internet, Seats.aero key, profile, miles table) and teach, step by step with official links, how to fix anything missing on macOS, Windows or Linux. Use the first time, whenever something errors, or when the user asks how to install/configure ("instalar", "configurar", "instalación", "setup").
+description: Check that the computer is ready for FareHunter and teach, step by step with official links, how to fix what's missing (uv, Node, internet, Seats.aero key) on macOS, Windows or Linux. Use the first time or when something errors.
 argument-hint: "[optional: what went wrong]"
 ---
 
