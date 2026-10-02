@@ -196,3 +196,16 @@ def test_served_hubs_keep_only_airports_with_flights(monkeypatch, tmp_path):
     hubs, ops = rotas.hubs_servidos("MIA", "BR", "2026-11-20", excluir={"BSB"}, cache=Cache(tmp_path))
     assert [h["iata"] for h in hubs] == ["GRU", "FOR"]  # CNF has nothing; XXX is too small to try
     assert hubs[0]["direto"] and not hubs[1]["direto"] and len(ops) == 1
+
+
+def test_google_pause_can_be_released_after_the_user_browses(tmp_path, monkeypatch):
+    from fontes import google_flights as gf
+
+    monkeypatch.setattr(gf, "ESTADO_FREIO", tmp_path / "freio.json")
+    try:
+        gf._apos_erro(RuntimeError("HTTP 429"))
+    except gf.LimiteGoogle:
+        pass
+    assert gf.estado_pausa()["pausado"]
+    gf.liberar_pausa()
+    assert not gf.estado_pausa()["pausado"]

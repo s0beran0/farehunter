@@ -82,6 +82,19 @@ def _antes_de_chamar_sem_trava() -> None:
     _gravar_freio(estado)
 
 
+def estado_pausa() -> dict:
+    """{'pausado': bool, 'minutos_restantes': int}."""
+    restante = _ler_freio().get("bloqueado_ate", 0) - time.time()
+    return {"pausado": restante > 0, "minutos_restantes": max(0, round(restante / 60))}
+
+
+def liberar_pausa() -> None:
+    """Clear the 429 pause (after the user browsed Google Flights themselves). The next call tries Google again."""
+    estado = _ler_freio()
+    estado.pop("bloqueado_ate", None)
+    _gravar_freio(estado)
+
+
 def _apos_erro(e: Exception) -> None:
     if "429" in str(e):
         estado = _ler_freio()

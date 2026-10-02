@@ -223,8 +223,12 @@ def gerar_relatorio(
             frase += "."
         linhas.append(frase)
         if "google_flights" in fontes_falharam:
+            from fontes.google_flights import link_google
+
+            link = link_google(p.origens[0], p.destinos[0], p.data_ida, p.data_volta, p.moeda, p.pais)
             linhas.append("")
             linhas.append(t("rel.alerta_google"))
+            linhas.append(t("rel.alerta_google_passos", link=link))
         linhas.append("")
         linhas.append(t("plano.titulo"))
         linhas.append("")
