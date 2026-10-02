@@ -13,13 +13,13 @@ Describe your trip in plain words, in English, Portuguese or Spanish — for exa
 You get a ranking in BRL with the links to book yourself.
 
 - Focused on trips **from or within Brazil** (Smiles, LATAM Pass, Azul Fidelidade, Livelo, Esfera; prices in BRL).
-- **Runs on your computer**, in the Claude Desktop app (**Code** tab). Nothing is hosted.
+- **Runs on your computer**: in the Claude Desktop app (**Code** tab) on macOS and Windows, or in Claude Code in the terminal on Linux. Nothing is hosted.
 - **Everyone uses their own keys and accounts.** It **never buys, books or asks for passwords**.
 - Talks to you in your language. The report comes in English, Portuguese or Spanish; Claude translates other languages.
 
 ## Install (once, ~5 minutes)
 
-**1. Get Claude Desktop:** https://claude.ai/download. Sign in (your plan must include Claude Code).
+**1. Get Claude Desktop** (macOS/Windows): https://claude.ai/download. Sign in (your plan must include Claude Code). On **Linux** there is no Claude Desktop: the installer below offers to install Claude Code for the terminal.
 
 **2. Run the installer.** It checks what is missing and asks before installing anything.
 
@@ -31,6 +31,10 @@ You get a ranking in BRL with the links to book yourself.
   ```powershell
   irm https://raw.githubusercontent.com/s0beran0/farehunter/main/scripts/install.ps1 | iex
   ```
+- **Linux:** open a terminal and paste (the same script as macOS; it also offers to install [Claude Code](https://code.claude.com/docs/en/setup)):
+  ```bash
+  curl -fsSL https://raw.githubusercontent.com/s0beran0/farehunter/main/scripts/install.sh | bash
+  ```
 
 It takes care of:
 - **uv**, required: runs the cost engine and downloads Python by itself;
@@ -38,13 +42,13 @@ It takes care of:
 - **Git**, on Windows only;
 - the **plugin** itself.
 
-**3. If the installer said it couldn't find the `claude` command**, install the plugin from the app. Open Claude Desktop → **Code** tab → pick any folder (e.g. `Documents/trips`) and type:
+**3. (macOS/Windows) If the installer said it couldn't find the `claude` command**, install the plugin from the app. Open Claude Desktop → **Code** tab → pick any folder (e.g. `Documents/trips`) and type:
 ```
 /plugin marketplace add s0beran0/farehunter
 /plugin install farehunter@farehunter-marketplace
 ```
 
-**4. Quit and reopen Claude Desktop.** In the Code tab, type:
+**4. Quit and reopen Claude Desktop** and, in the Code tab, type the command below. On **Linux**, open a terminal in any folder, run `claude` (log in the first time) and type it there:
 ```
 /farehunter:setup
 ```
@@ -70,7 +74,7 @@ It checks everything (internet, uv, Node, keys) and calmly explains whatever is 
 
 ## Your data
 
-It lives in `~/.farehunter/` (on Windows, `C:\Users\<you>\.farehunter\`):
+It lives in `~/.farehunter/` (on Windows, `C:\Users\<you>\.farehunter\`; on Linux, `/home/<you>/.farehunter/`):
 - profile;
 - miles values;
 - price history;

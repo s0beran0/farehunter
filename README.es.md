@@ -13,13 +13,13 @@ Cuenta tu viaje con tus palabras (en español, portugués o inglés), por ejempl
 Al final entrega un ranking en reales (BRL), con los enlaces para que compres o emitas tú mismo.
 
 - Pensado para viajes **desde Brasil o dentro de Brasil** (Smiles, LATAM Pass, Azul Fidelidade, Livelo, Esfera; precios en BRL).
-- **Corre en tu computadora**, en la app Claude Desktop (pestaña **Code**). Nada se aloja en un servidor.
+- **Corre en tu computadora**: en la app Claude Desktop (pestaña **Code**) en Mac y Windows, o en Claude Code desde la terminal en Linux. Nada se aloja en un servidor.
 - **Cada persona usa sus propias claves y cuentas.** **Nunca compra, no emite y nunca pide contraseñas**.
 - Te habla en tu idioma. El informe sale en español, portugués o inglés; otros idiomas los traduce Claude.
 
 ## Instalar (una vez, ~5 minutos)
 
-**1. Ten Claude Desktop:** https://claude.ai/download. Inicia sesión (tu plan debe incluir Claude Code).
+**1. Ten Claude Desktop** (Mac/Windows): https://claude.ai/download. Inicia sesión (tu plan debe incluir Claude Code). En **Linux** no existe Claude Desktop: el instalador de abajo ofrece instalar Claude Code para la terminal.
 
 **2. Ejecuta el instalador.** Revisa lo que falta y pregunta antes de instalar cada cosa.
 
@@ -31,6 +31,10 @@ Al final entrega un ranking en reales (BRL), con los enlaces para que compres o 
   ```powershell
   irm https://raw.githubusercontent.com/s0beran0/farehunter/main/scripts/install.ps1 | iex
   ```
+- **Linux:** abre una terminal y pega (es el mismo script de Mac; también ofrece instalar [Claude Code](https://code.claude.com/docs/en/setup)):
+  ```bash
+  curl -fsSL https://raw.githubusercontent.com/s0beran0/farehunter/main/scripts/install.sh | bash
+  ```
 
 El instalador se encarga de:
 - **uv**, obligatorio: ejecuta el motor de cálculo y descarga Python por sí solo;
@@ -38,13 +42,13 @@ El instalador se encarga de:
 - **Git**, solo en Windows;
 - el **plugin** en sí.
 
-**3. Si el instalador dijo que no encontró el comando `claude`**, instala el plugin desde la app. Abre Claude Desktop → pestaña **Code** → elige cualquier carpeta (ej.: `Documentos/viajes`) y escribe:
+**3. (Mac/Windows) Si el instalador dijo que no encontró el comando `claude`**, instala el plugin desde la app. Abre Claude Desktop → pestaña **Code** → elige cualquier carpeta (ej.: `Documentos/viajes`) y escribe:
 ```
 /plugin marketplace add s0beran0/farehunter
 /plugin install farehunter@farehunter-marketplace
 ```
 
-**4. Cierra y vuelve a abrir Claude Desktop.** En la pestaña Code, escribe:
+**4. Cierra y vuelve a abrir Claude Desktop** y, en la pestaña Code, escribe el comando de abajo. En **Linux**, abre una terminal en cualquier carpeta, ejecuta `claude` (inicia sesión la primera vez) y escríbelo ahí:
 ```
 /farehunter:setup
 ```
@@ -70,7 +74,7 @@ Revisa todo (internet, uv, Node, claves) y explica con calma lo que falte, con e
 
 ## Tus datos
 
-Se guardan en `~/.farehunter/` (en Windows, `C:\Users\<tú>\.farehunter\`):
+Se guardan en `~/.farehunter/` (en Windows, `C:\Users\<tú>\.farehunter\`; en Linux, `/home/<tú>/.farehunter/`):
 - perfil;
 - valores de las millas;
 - historial de precios;
