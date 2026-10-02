@@ -112,6 +112,7 @@ MENSAGENS: dict[str, dict] = {
         "rel.sem_validada_motivo": "As opções encontradas vieram de cache ou de calendário de preços e não puderam ser confirmadas.",
         "rel.titulo_janela": "# Passagens {rota} · ida entre {ini} e {fim} · {noites} noites · {pax} pax",
         "rel.eh_referencia_janela": " (é a tarifa simples mais barata da janela, sem bilhetes separados nem milhas).",
+        "rel.alerta_google": "⚠️ **Atenção: o Google Flights ficou indisponível nesta busca** (bloqueio temporário). Sem ele faltam as tarifas de ida e volta vendidas direto pelas cias (ex.: voos diretos da American), que costumam ser bem mais baratas que duas passagens só de ida. Esta recomendação pode não ser a mais barata: repita a busca em ~30 minutos antes de comprar.",
     },
     "en": {
         "aviso.nao_validadas": "{n} unvalidated option(s) were left out of the recommendation (cached award seats not confirmed on the site, or calendar prices without a specific flight).",
@@ -219,6 +220,7 @@ MENSAGENS: dict[str, dict] = {
         "rel.sem_validada_motivo": "The options found came from a cache or a price calendar and could not be confirmed.",
         "rel.titulo_janela": "# Flights {rota} · leaving between {ini} and {fim} · {noites} nights · {pax} pax",
         "rel.eh_referencia_janela": " (it is the cheapest plain fare in the window, without separate tickets or miles).",
+        "rel.alerta_google": "⚠️ **Warning: Google Flights was unavailable in this search** (temporary block). Without it, round-trip fares sold directly by airlines (e.g. American's nonstops) are missing, and they are often much cheaper than two one-way tickets. This recommendation may not be the cheapest: run the search again in ~30 minutes before buying.",
     },
     "es": {
         "aviso.nao_validadas": "{n} opción(es) sin validar quedaron fuera de la recomendación (millas de caché no confirmadas en el sitio o precios de calendario sin vuelo específico).",
@@ -326,5 +328,6 @@ MENSAGENS: dict[str, dict] = {
         "rel.sem_validada_motivo": "Las opciones encontradas vinieron de caché o de un calendario de precios y no se pudieron confirmar.",
         "rel.titulo_janela": "# Vuelos {rota} · ida entre {ini} y {fim} · {noites} noches · {pax} pax",
         "rel.eh_referencia_janela": " (es la tarifa simple más barata de la ventana, sin boletos separados ni millas).",
+        "rel.alerta_google": "⚠️ **Atención: Google Flights no estuvo disponible en esta búsqueda** (bloqueo temporal). Sin él faltan las tarifas de ida y vuelta que venden directamente las aerolíneas (ej.: vuelos directos de American), que suelen ser mucho más baratas que dos pasajes solo de ida. Esta recomendación puede no ser la más barata: repite la búsqueda en ~30 minutos antes de comprar.",
     },
 }

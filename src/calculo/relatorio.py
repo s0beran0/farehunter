@@ -222,6 +222,9 @@ def gerar_relatorio(
         else:
             frase += "."
         linhas.append(frase)
+        if "google_flights" in fontes_falharam:
+            linhas.append("")
+            linhas.append(t("rel.alerta_google"))
         linhas.append("")
         linhas.append(t("plano.titulo"))
         linhas.append("")

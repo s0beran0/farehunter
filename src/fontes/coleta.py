@@ -101,6 +101,11 @@ def coletar_dinheiro(run: Path, fontes: tuple[str, ...] = ("google_flights", "ki
                              lambda: kiwi.buscar(destino, origem, volta, None, pax, 0, cab, bag, **kloc), trecho="volta")
                 n += _tentar(run, "kiwi", f"{r} ida+volta",
                              lambda: kiwi.buscar(origem, destino, ida, volta, pax, 0, cab, bag, **kloc))
+                # Kiwi returns only its 15 cheapest itineraries, usually all with connections; the nonstop
+                # round-trip fare (often far cheaper than two nonstop one-ways) needs its own search.
+                n += _tentar(run, "kiwi", f"{r} ida+volta direto",
+                             lambda: kiwi.buscar(origem, destino, ida, volta, pax, p["flex_dias"], cab, bag,
+                                                 sem_escalas=True, **kloc))
             resumo[f"kiwi {r}"] = n
     return resumo
 
@@ -156,6 +161,11 @@ def coletar_datas(run: Path, fontes: tuple[str, ...] = ("google_flights", "kiwi"
             # Kiwi returns a curated set (15 itineraries) for the whole window, with specific flights.
             if pd.datas_exatas():
                 fn = lambda: kiwi.buscar(origem, destino, p["data_ida"], p.get("data_volta"), pax, min(flex, 10), cab, **kloc)  # noqa: E731
+                if p.get("data_volta"):
+                    resumo[f"kiwi flex direto {r}"] = _tentar(
+                        run, "kiwi", f"flex direto {r}",
+                        lambda: kiwi.buscar(origem, destino, p["data_ida"], p["data_volta"], pax, min(flex, 10), cab,
+                                            sem_escalas=True, **kloc))
             else:
                 noites = (min(duracoes), max(duracoes)) if duracoes else None
                 fn = lambda: kiwi.buscar(origem, destino, _iso(ida_ini), None, pax, 0, cab, ida_ate=_iso(ida_fim),  # noqa: E731

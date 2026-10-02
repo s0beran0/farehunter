@@ -86,5 +86,5 @@ This mode ranks **only validated options** (cash with a specific flight fetched 
 - Never buy, book, transfer points or pay. Stop at the link.
 - Never ask for, store or log passwords for loyalty programs, banks or cards.
 - Recommend only what was validated in this run; prices still change until ticketing — say it once.
-- If a source failed, say which one and what it means for the result (e.g. "without Google Flights, only 15 Kiwi options were compared").
+- If a source failed, say which one and what it means for the result, **right after the recommendation**, not at the end. If Google Flights failed (the report shows a warning), say plainly that the recommendation may miss cheaper airline round-trip fares (e.g. nonstops) and that the search should be repeated in ~30 minutes; don't present it as final.
 - Mileage brokers (123milhas, MaxMilhas, HotMilhas…) are out of scope on purpose (legal and cancellation risk).
