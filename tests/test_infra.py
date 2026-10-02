@@ -1,0 +1,98 @@
+from datetime import date
+
+import pytest
+
+from infra.cache import Cache, chave_busca
+from infra.historico import comparar_com_anterior, gravar, ler
+from infra.limites import Contadores, LimiteExcedido
+from normalizacao.schema import Opcao, Perna
+
+
+def test_cache_respeita_ttl(tmp_path):
+    t = [1000.0]
+    c = Cache(tmp_path, agora=lambda: t[0])
+    k = chave_busca("GRU", "REC", "2026-12-10")
+    c.set("kiwi", k, {"x": 1})
+    assert c.get("kiwi", k) == {"x": 1}
+    t[0] += 2 * 3600 + 1  # TTL kiwi = 2h
+    assert c.get("kiwi", k) is None
+    c.set("seats_aero", k, [1])
+    t[0] += 5 * 3600
+    assert c.get("seats_aero", k) == [1]  # TTL seats = 6h
+    assert c.limpar_expirados() == 1  # o do kiwi
+
+
+def test_limite_diario_e_por_execucao(tmp_path):
+    dia = [date(2026, 10, 2)]
+    c = Contadores(tmp_path / "c.json", {"seats_aero_chamadas_dia": 2, "playwright_paginas_por_execucao": 1}, hoje=lambda: dia[0])
+    assert c.consumir("seats_aero_chamadas_dia") == 1
+    assert c.consumir("seats_aero_chamadas_dia") == 0
+    with pytest.raises(LimiteExcedido):
+        c.consumir("seats_aero_chamadas_dia")
+    dia[0] = date(2026, 10, 3)
+    assert c.consumir("seats_aero_chamadas_dia") == 1  # zera no dia seguinte
+    c.consumir("playwright_paginas_por_execucao", execucao="run1")
+    with pytest.raises(LimiteExcedido):
+        c.consumir("playwright_paginas_por_execucao", execucao="run1")
+    assert c.consumir("playwright_paginas_por_execucao", execucao="run2") == 0
+
+
+def _op(preco, ts):
+    return Opcao(fonte="kiwi", tipo="dinheiro", preco_brl=preco, coletado_em=ts,
+                 pernas=[Perna("GRU", "REC", "2026-12-10", cia="G3", voos=["G3 1"])])
+
+
+def test_historico_grava_e_compara(tmp_path):
+    arq = tmp_path / "h.csv"
+    gravar([_op(500, "2026-09-20T10:00:00+00:00"), _op(520, "2026-09-20T10:00:00+00:00")], arq)
+    atuais = [_op(450, "2026-10-02T10:00:00+00:00")]
+    msgs = comparar_com_anterior(atuais, arq)
+    assert len(msgs) == 1 and "desceu" in msgs[0] and "500" in msgs[0] and "450" in msgs[0]
+    gravar(atuais, arq)
+    assert len(ler(arq)) == 3
+
+
+def test_extrair_promos_dos_titulos():
+    from fontes.promos import extrair
+
+    a = extrair("Último dia! Smiles oferece até 80% de bônus na transferência de pontos Livelo")
+    assert a["tipo"] == "transferencia" and a["bonus_pct_max"] == 80 and set(a["programas"]) >= {"smiles", "livelo"}
+    assert a["ultimo_dia"]
+    b = extrair("LATAM Pass: compre milhas com até 65% de desconto, milheiro a partir de R$ 24,50")
+    assert b["tipo"] == "compra" and b["desconto_pct_max"] == 65 and b["cpm_citado"] == 24.5
+
+
+def test_coleta_datas_cai_no_sweep_quando_grade_falha(tmp_path, monkeypatch):
+    import json
+
+    from fontes import coleta, google_flights, kiwi
+    from infra import runs
+
+    run = tmp_path / "run"
+    (run / "opcoes").mkdir(parents=True)
+    (run / "pedido.json").write_text(json.dumps({
+        "origens": ["GRU"], "destinos": ["REC"], "data_ida": "2026-12-10", "data_volta": None,
+        "flex_dias": 1, "passageiros": 1, "cabine": "economy"}))
+
+    def grade_quebrada(*a, **k):
+        raise google_flights.FonteIndisponivel("grade vazia")
+
+    chamadas = []
+
+    def busca(origem, destino, data, volta, pax, cab):
+        chamadas.append(data)
+        return [Opcao(fonte="google_flights", tipo="dinheiro", preco_brl=500,
+                      pernas=[Perna(origem, destino, data, cia="G3", voos=["G3 1"])])]
+
+    def kiwi_fora(*a, **k):
+        raise kiwi.FonteIndisponivel("kiwi fora do ar")
+
+    monkeypatch.setattr(google_flights, "grade", grade_quebrada)
+    monkeypatch.setattr(google_flights, "buscar_data", busca)
+    monkeypatch.setattr(kiwi, "buscar", kiwi_fora)
+    monkeypatch.setattr(coleta, "carregar_perfil", lambda: __import__("infra.config", fromlist=["x"]).perfil_de_dict({}))
+    coleta.coletar_datas(run)
+    st = runs.status(run)
+    assert chamadas == ["2026-12-09", "2026-12-10", "2026-12-11"]
+    assert st["google_flights"]["ok"] and "sweep" in st["google_flights"]["motivo"]
+    assert st["kiwi"]["ok"] is False and "kiwi fora do ar" in st["kiwi"]["motivo"]

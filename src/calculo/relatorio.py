@@ -1,0 +1,225 @@
+"""Relatório markdown determinístico (SPEC §7.2), no idioma definido em i18n. Os números vêm daqui."""
+
+from __future__ import annotations
+
+from calculo.custo import NOMES_PROGRAMA, CustoCombinacao
+from calculo.ranking import Resultado, descrever_veredito
+from i18n import data_curta as _data_curta
+from i18n import dinheiro as brl
+from i18n import numero as mil
+from i18n import t
+
+NOMES_CIA = {"G3": "GOL", "LA": "LATAM", "JJ": "LATAM", "AD": "Azul", "2Z": "Voepass", "TP": "TAP", "CM": "Copa"}
+
+
+def _cias(c: CustoCombinacao) -> str:
+    return " / ".join(NOMES_CIA.get(x, x) for x in c.cias) or "—"
+
+
+def _links(c: CustoCombinacao) -> str:
+    links = []
+    for o in c.opcoes:
+        if o.link:
+            rotulo = o.programa and NOMES_PROGRAMA.get(o.programa) or o.fonte
+            links.append(f"[{rotulo}]({o.link})")
+    return " · ".join(dict.fromkeys(links)) or "—"
+
+
+def _detalhe_custo(c: CustoCombinacao) -> str:
+    partes = []
+    if c.custo_dinheiro_brl:
+        partes.append(t("det.tarifas", v=brl(c.custo_dinheiro_brl)))
+    for f in c.financiamentos:
+        sub = []
+        if f.milhas_do_saldo:
+            sub.append(t("det.do_saldo", n=mil(f.milhas_do_saldo)))
+        if f.milhas_compradas:
+            sub.append(t("det.compradas", n=mil(f.milhas_compradas), v=brl(f.custo_compra_brl)))
+        for tr in f.transferencias:
+            bonus = f" +{tr.bonus_pct:.0f}%" if tr.bonus_pct else ""
+            sub.append(t("det.pontos", n=mil(tr.pontos), origem=tr.origem, bonus=bonus, v=brl(tr.custo_brl)))
+        partes.append(t("det.milhas", n=mil(f.milhas_necessarias), programa=NOMES_PROGRAMA.get(f.programa, f.programa),
+                        partes=", ".join(sub)))
+    if c.taxas_brl:
+        partes.append(t("det.taxas", v=brl(c.taxas_brl)))
+    if c.bagagem_brl:
+        partes.append(t("det.bagagem", v=brl(c.bagagem_brl)))
+    if c.deslocamento_brl:
+        partes.append(t("det.deslocamento", v=brl(c.deslocamento_brl)))
+    return "; ".join(partes)
+
+
+def _observacoes(c: CustoCombinacao) -> str:
+    obs = [_detalhe_custo(c)]
+    if c.conexoes_total:
+        obs.append(t("det.conexoes", n=c.conexoes_total))
+    if c.datas_alternativas:
+        outras = ", ".join(
+            _data_curta(i) + (f"→{_data_curta(v)}" if v else "") for i, v in c.datas_alternativas[:4]
+        )
+        extra = t("det.e_mais", n=len(c.datas_alternativas) - 4) if len(c.datas_alternativas) > 4 else ""
+        obs.append(t("det.mesmo_custo", datas=outras, extra=extra))
+    obs.extend(f"⚠️ {r}" for r in c.riscos)
+    return "<br>".join(x for x in obs if x)
+
+
+def _datas(ida: str, volta: str | None) -> str:
+    return _data_curta(ida) + (f" → {_data_curta(volta)}" if volta else "")
+
+
+def _linha(i: int | str, c: CustoCombinacao, r: Resultado) -> str:
+    eco = r.economia(c)
+    eco_txt = t("rel.referencia") if c is r.referencia else (brl(eco) if eco is not None else "—")
+    return (f"| {i} | {c.descricao()} | {_datas(c.data_ida, c.data_volta)} | {_cias(c)} | **{brl(c.custo_brl)}** "
+            f"| {eco_txt} | {_observacoes(c)} | {_links(c)} |")
+
+
+def _matriz(r: Resultado) -> list[str]:
+    if r.pedido.so_ida:
+        datas = sorted({k[0] for k in r.matriz})
+        if not datas:
+            return [t("rel.grade_vazia")]
+        melhor = min(r.matriz.values(), key=lambda c: c.custo_brl)
+        linhas = [t("rel.grade_cabecalho"), "|---|---|"]
+        for d in datas:
+            c = r.matriz[(d, None)]
+            v = brl(c.custo_brl)
+            linhas.append(f"| {_data_curta(d)} | {'**' + v + '** ⭐' if c is melhor else v} |")
+        return linhas
+    idas = sorted({k[0] for k in r.matriz})
+    voltas = sorted({k[1] for k in r.matriz if k[1]})
+    if not idas or not voltas:
+        return [t("rel.matriz_vazia")]
+    melhor = min(r.matriz.values(), key=lambda c: c.custo_brl)
+    linhas = [f"| {t('rel.matriz_canto')} | " + " | ".join(_data_curta(v) for v in voltas) + " |",
+              "|---" * (len(voltas) + 1) + "|"]
+    for d in idas:
+        celulas = []
+        for v in voltas:
+            c = r.matriz.get((d, v))
+            if c is None:
+                celulas.append("·")
+            elif c is melhor:
+                celulas.append(f"**{brl(c.custo_brl)}** ⭐")
+            else:
+                celulas.append(brl(c.custo_brl))
+        linhas.append(f"| {_data_curta(d)} | " + " | ".join(celulas) + " |")
+    linhas.append("")
+    linhas.append(t("rel.matriz_legenda"))
+    return linhas
+
+
+def gerar_relatorio(
+    r: Resultado,
+    fontes_ok: list[str],
+    fontes_falharam: dict[str, str],
+    top: int = 5,
+    milheiro=None,
+    saldos: dict | None = None,
+) -> str:
+    p = r.pedido
+    linhas: list[str] = []
+    rota = f"{'/'.join(p.origens)} → {'/'.join(p.destinos)}"
+    datas = _datas(p.data_ida, p.data_volta) + ("" if p.data_volta else t("rel.so_ida"))
+    linhas.append(t("rel.titulo", rota=rota, datas=datas, pax=p.passageiros, flex=p.flex_dias))
+    linhas.append("")
+
+    melhor = r.principais[0] if r.principais else (r.ranking[0] if r.ranking else None)
+    if melhor is None:
+        linhas.append(t("rel.nenhuma"))
+    else:
+        eco = r.economia(melhor)
+        frase = t("rel.mais_barato", descricao=melhor.descricao(), datas=_datas(melhor.data_ida, melhor.data_volta),
+                  cias=_cias(melhor), custo=brl(melhor.custo_brl))
+        if melhor is r.referencia:
+            frase += t("rel.eh_referencia")
+        elif eco is not None:
+            frase += t("rel.economia", economia=brl(eco), referencia=brl(r.referencia.custo_brl))
+        else:
+            frase += "."
+        linhas.append(frase)
+    linhas.append("")
+
+    linhas.append(t("rel.top", n=top))
+    linhas.append("")
+    linhas.append(t("rel.cabecalho"))
+    linhas.append("|---|---|---|---|---|---|---|---|")
+    for i, c in enumerate(r.principais[:top], 1):
+        linhas.append(_linha(i, c, r))
+    if r.referencia is not None and r.referencia not in r.principais[:top]:
+        linhas.append(_linha("ref", r.referencia, r))
+    linhas.append("")
+
+    if r.tambem_possivel:
+        linhas.append(t("rel.tambem"))
+        linhas.append("")
+        linhas.append(t("rel.cabecalho"))
+        linhas.append("|---|---|---|---|---|---|---|---|")
+        for i, c in enumerate(r.tambem_possivel[:3], 1):
+            linhas.append(_linha(i, c, r))
+        linhas.append("")
+
+    linhas.append(t("rel.matriz"))
+    linhas.append("")
+    linhas.extend(_matriz(r))
+    linhas.append("")
+
+    linhas.append(t("rel.milhas"))
+    linhas.append("")
+    if not r.vereditos:
+        linhas.append(t("rel.sem_resgates"))
+    for v in r.vereditos:
+        o = v.melhor_opcao
+        linhas.append(t(
+            "rel.resgate", programa=NOMES_PROGRAMA.get(v.programa, v.programa), milhas=mil(v.milhas),
+            taxas=brl(v.taxas_brl), data=_data_curta(o.data_ida), rota=f"{o.pernas[0].origem}→{o.pernas[-1].destino}",
+            status=t("rel.status_vivo") if o.confirmado_ao_vivo else t("rel.status_cache"),
+            preco=brl(v.preco_dinheiro_comparado), base=v.base_comparacao,
+        ))
+        linhas.append(f"  - {descrever_veredito(v)}")
+    if milheiro is not None:
+        premissas = [
+            t("rel.premissa_item", programa=NOMES_PROGRAMA.get(prog, prog), compra=brl(cpm.cpm_compra_atual),
+              uso=brl(cpm.cpm_uso_efetivo), data=cpm.atualizado_em or t("rel.sem_data"))
+            for prog, cpm in milheiro.programas.items()
+            if cpm.cpm_compra_atual is not None
+        ]
+        if premissas:
+            linhas.append("")
+            linhas.append(t("rel.premissas", lista="; ".join(premissas)))
+    linhas.append("")
+
+    if saldos and saldos.get("saldos"):
+        lista = ", ".join(f"{NOMES_PROGRAMA.get(k, k)} {mil(v)}" for k, v in saldos["saldos"].items())
+        linhas.append(t("rel.saldos", quando=saldos["informados_em"].replace("T", " "), lista=lista))
+        linhas.append("")
+    linhas.append(t("rel.fontes"))
+    linhas.append("")
+    linhas.append(t("rel.fontes_ok", lista=", ".join(fontes_ok) or t("rel.nenhuma_fonte")))
+    for f, motivo in fontes_falharam.items():
+        linhas.append(t("rel.fonte_falhou", fonte=f, motivo=motivo))
+    for a in r.avisos:
+        linhas.append(f"- ⚠️ {a}")
+    linhas.append(t("rel.precos_mudam"))
+    linhas.append("")
+
+    linhas.append(t("rel.proximos"))
+    linhas.append("")
+    if melhor is not None:
+        for o in melhor.opcoes:
+            trecho = t(f"trecho.{o.trecho}")
+            link = o.link or t("rel.buscar_no_site")
+            if o.tipo == "milhas":
+                linhas.append(t("rel.passo_emitir", trecho=trecho, alvo=NOMES_PROGRAMA.get(o.programa, o.programa), link=link))
+            else:
+                linhas.append(t("rel.passo_comprar", trecho=trecho, alvo=o.fonte, link=link))
+        for f in melhor.financiamentos:
+            nome = NOMES_PROGRAMA.get(f.programa, f.programa)
+            if f.milhas_compradas:
+                linhas.append(t("rel.passo_comprar_milhas", milhas=mil(f.milhas_compradas), programa=nome))
+            for tr in f.transferencias:
+                linhas.append(t("rel.passo_transferir", pontos=mil(tr.pontos), origem=tr.origem, programa=nome)
+                              + (t("rel.passo_bonus", bonus=f"{tr.bonus_pct:.0f}") if tr.bonus_pct else "."))
+    linhas.append("")
+    linhas.append(t("rel.rodape"))
+    return "\n".join(linhas)

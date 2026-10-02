@@ -1,0 +1,23 @@
+{
+  "mcpServers": {
+    "kiwi": {
+      "type": "http",
+      "url": "https://mcp.kiwi.com"
+    },
+    "seats-aero": {
+      "type": "http",
+      "url": "https://seats.aero/mcp"
+    },
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@0.0.83",
+        "--user-data-dir", "${CLAUDE_PLUGIN_DATA}/browser-profile",
+        "--snapshot-mode", "none",
+        "--image-responses", "omit",
+        "--output-dir", "${CLAUDE_PLUGIN_DATA}/playwright"
+      ]
+    }
+  }
+}

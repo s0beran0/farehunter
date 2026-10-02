@@ -1,0 +1,10 @@
+{
+  "name": "farehunter",
+  "version": "0.2.0",
+  "description": "Finds the cheapest way to fly from/within Brazil: cash fares, nearby dates, miles (Smiles, Azul, LATAM Pass), buying miles and transferring card points. Multi-language (pt/en/es). Runs on your computer with your own keys; never buys or books anything.",
+  "author": { "name": "Eduardo Borges" },
+  "homepage": "https://github.com/s0beran0/farehunter",
+  "repository": "https://github.com/s0beran0/farehunter",
+  "license": "MIT",
+  "keywords": ["flights", "fares", "miles", "points", "award", "smiles", "latam", "azul", "livelo", "brazil", "passagens", "milhas"]
+}

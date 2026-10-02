@@ -1,0 +1,11 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+data/cache/
+data/runs/
+data/historico.csv
+.playwright/
+browser-profile/
+.playwright-mcp/

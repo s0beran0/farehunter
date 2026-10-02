@@ -1,0 +1,59 @@
+# CPM = custo em BRL por 1.000 milhas/pontos.
+# atualizado_em é obrigatório. Com mais de 15 dias, o agente avisa e sugere /atualizar-milheiro.
+#
+# cpm_compra_atual: quanto custa COMPRAR milhas hoje (promoção vigente ou preço cheio).
+# cpm_valor_uso:    quanto vale 1.000 milhas que você JÁ TEM (custo de oportunidade). Sem valor, usa cpm_compra_atual.
+# compra_minima / compra_passo: lote mínimo e múltiplo de compra no programa.
+#
+# Valores iniciais da pesquisa de 2026-10-02 (docs/research.md §6). Fontes:
+#   MD    = melhoresdestinos.com.br/milhas/valor-milheiro-azul-latam-smiles-2026 (valor-alvo, 30/07/26)
+#   MBot  = milhasbot.com.br/valores-do-milheiro/ (uso e teto de compra, 02/10/26)
+#   PdP   = passageirodeprimeira.com (promoções)
+
+smiles:
+  cpm_compra_atual: 16.50   # sem promo ativa em 02/10; 16,50 é o teto "bom" recorrente (380% bônus Clube saiu a 16,67 até 20/09)
+  cpm_valor_uso: 22.0       # MBot, valor de uso médio
+  compra_minima: 1000
+  compra_passo: 1000
+  fonte: "MD alvo 16 (30/07); MBot teto 14–16,50 e uso 22 (02/10); sem promoção de compra ativa em 02/10"
+  atualizado_em: "2026-10-02"
+
+latam_pass:
+  cpm_compra_atual: 24.50   # compra com 65% OFF, válida até 02/10/26 (PdP 29/09)
+  cpm_valor_uso: 28.0
+  compra_minima: 1000
+  compra_passo: 1000
+  fonte: "PdP 29/09 (65% OFF até 02/10); MD alvo 26; MBot uso 28"
+  atualizado_em: "2026-10-02"
+
+azul:
+  cpm_compra_atual: 21.0    # compra direta com 70% OFF; via transferência com bônus sai ~R$ 10–13 (ver transferencias)
+  cpm_valor_uso: 17.0
+  compra_minima: 1000
+  compra_passo: 1000
+  fonte: "MD alvo 13 (via clube/transferência); compra direta 70% OFF ~R$ 21; MBot uso 17 (02/10)"
+  atualizado_em: "2026-10-02"
+
+# CPM dos pontos de cartão (origem das transferências).
+pontos:
+  livelo:
+    cpm_compra_atual: 30.0
+    cpm_valor_uso: 23.0
+    fonte: "MD valor-milheiro-livelo (11/07: alvo 30); MBot uso 23 (02/10)"
+    atualizado_em: "2026-10-02"
+  esfera:
+    cpm_compra_atual: 33.0
+    cpm_valor_uso: 22.0
+    fonte: "compras 2026 a R$ 31,50–33,60 (PdP); MBot uso 22 (02/10)"
+    atualizado_em: "2026-10-02"
+
+# Bônus de transferência vigentes. Chave: <origem>_<destino>. ate vazio = sem validade definida.
+# proporcao = pontos de origem por milha antes do bônus (1 = 1:1).
+# minimo = mínimo de pontos por transferência (blogs, set/2026 — docs/research.md §5.6).
+transferencias:
+  livelo_smiles:     { bonus_pct: 0, ate: "", proporcao: 1, minimo: 10000 }  # último: 70% até 30/09/26
+  esfera_smiles:     { bonus_pct: 0, ate: "", proporcao: 1, minimo: 30000 }
+  livelo_latam_pass: { bonus_pct: 0, ate: "", proporcao: 1, minimo: 12000 }
+  esfera_latam_pass: { bonus_pct: 0, ate: "", proporcao: 1, minimo: 30000 }
+  livelo_azul:       { bonus_pct: 0, ate: "", proporcao: 1, minimo: 1000 }   # último: até 110% até 27/09/26
+  esfera_azul:       { bonus_pct: 0, ate: "", proporcao: 1, minimo: 30000 }
