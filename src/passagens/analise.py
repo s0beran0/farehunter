@@ -14,6 +14,20 @@ from infra.config import carregar_milheiro, carregar_perfil
 from normalizacao.schema import carregar_opcoes
 
 
+def dicas_da_execucao(pedido: Pedido) -> list[str]:
+    """Timing tips; airport countries come from a 30-day cache (one Seats.aero lookup the first time)."""
+    from calculo.dicas import gerar_dicas
+    from fontes.rotas import pais_do_aeroporto
+
+    try:
+        pais_o = pais_do_aeroporto(pedido.origens[0]) or pedido.pais
+        pais_d = pais_do_aeroporto(pedido.destinos[0])
+        ida = pedido.ida_de or pedido.data_ida
+        return gerar_dicas(ida, pedido.data_volta, pedido.destinos[0], pais_o, pais_d, pedido.pais, date.today())
+    except Exception:  # tips are a bonus: never break the analysis
+        return []
+
+
 def analisar_execucao(run: Path, top: int = 5, exploratorio: bool = False,
                       gravar_historico: bool = True) -> tuple[str, list[dict]]:
     """Rank the run (validated options only unless `exploratorio`) and write relatorio.md / ranking.json."""
@@ -46,6 +60,9 @@ def analisar_execucao(run: Path, top: int = 5, exploratorio: bool = False,
 
     comparacao = historico.comparar_com_anterior(opcoes, moeda_atual=pedido.moeda) if gravar_historico else []
     texto = gerar_relatorio(resultado, fontes_ok, falhas, top=top, milheiro=milheiro, saldos=saldos)
+    dicas = dicas_da_execucao(pedido)
+    if dicas:
+        texto += f"\n\n{i18n.t('rel.dicas')}\n\n" + "\n".join(f"- {d}" for d in dicas)
     if comparacao:
         texto += f"\n\n{i18n.t('rel.desde_ultima')}\n\n" + "\n".join(f"- {m}" for m in comparacao[:15])
     (run / "relatorio.md").write_text(texto, encoding="utf-8")

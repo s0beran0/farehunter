@@ -175,3 +175,10 @@ README (instalação, uso, cálculo, limitações, como trocar uma fonte) e CLAU
   - Quando o Google está fora, os detalhes da data também vêm do Kiwi.
   - Menos calendários ida e volta: só durações dentro de ±flex.
 - **Não automatizamos o "não sou um robô" do Google** nem tentamos driblar anti-bot. O extrator da Smiles em Python/Playwright foi testado e descartado: um Chromium limpo, com ou sem janela, fica parado no "Aguarde enquanto buscamos". A confirmação continua com o subagente de navegador, que usa o Chrome real do usuário.
+
+## Dicas de quando comprar (2026-10-02)
+- **Base:** `config/dicas.yaml`, montada com ~45 fontes datadas (`docs/research.md` §11). Não faz nenhuma chamada ao Google.
+- **Antecedência:** cada busca recebe uma classificação conforme a antecedência e o tipo de viagem (doméstica Brasil / doméstica / Américas / intercontinental): cedo, um pouco cedo, boa hora, fim da faixa ou tarde.
+- **Promoções:** o plugin lista as promoções do país do usuário que caem antes do último bom momento de compra. Avisa quando elas costumam trazer bônus de milhas.
+- **Temporada e dia de voo:** marca alta temporada no destino e lembra que o dia de voar pesa mais que o dia de comprar.
+- **Fora da análise:** as dicas nunca mudam o ranking. Qualquer erro nelas é ignorado, para não quebrar a busca.

@@ -434,3 +434,22 @@ def test_plan_is_complete_step_by_step_with_links_and_amounts():
     assert "**Total:**" in plano and "taxa de embarque não confirmada" in plano
     # order: check → buy miles → book award → buy cash
     assert plano.index("Confira") < plano.index("Compre 15.000") < plano.index("Emita") < plano.index("Compre a passagem")
+
+
+def test_timing_tips_early_trip_lists_sales_and_season():
+    from calculo.dicas import gerar_dicas
+
+    dicas = gerar_dicas("2027-10-08", "2027-10-15", "LIS", "BR", "PT", "BR", HOJE)  # a year ahead, Fri→Fri
+    texto = " ".join(dicas)
+    assert "Ainda é cedo" in texto and "60 a 180" in texto
+    assert "Black Friday — 27/11" in texto and "Aniversário Smiles" in texto and "bônus de transferência" in texto
+    assert "segunda a quarta" in texto
+
+
+def test_timing_tips_close_trip_and_domestic_window():
+    from calculo.dicas import gerar_dicas
+
+    assert "Compre logo" in gerar_dicas("2026-10-12", None, "REC", "BR", "BR", "BR", HOJE)[0]
+    assert "Boa hora" in gerar_dicas("2026-11-11", None, "REC", "BR", "BR", "BR", HOJE)[0]  # 40 days, domestic BR
+    alta = " ".join(gerar_dicas("2026-12-20", "2027-01-05", "MIA", "BR", "US", "BR", HOJE))
+    assert "Alta temporada" in alta

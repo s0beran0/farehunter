@@ -400,3 +400,47 @@ Both are free, need no key and were tested 2026-10-02. They are cached for 24h.
 - **Opened (HTTP 200):** delta, aeroplan, emirates, asiamiles, aeromexico, qantas, velocity, singapore (home page), virginatlantic (Flying Club page).
 - **Domain confirmed only:** american, alaska, iberia, lifemiles, copa, lufthansa, eurobonus, finnair, jal, eva, united, flyingblue, british, qatar, etihad, turkish. These sites return 403 or time out for scripts.
 - **Not verified:** ethiopian, saudia.
+
+
+---
+
+## 11. Timing tips (research 2026-10-02, ~45 sources)
+
+Condensed in `config/dicas.yaml`. Key findings:
+- **Booking day vs. flying day:** the day you buy barely matters (1–3%: Google Flights 2025-09-09, Expedia 2026-02-17, CheapAir 2024). The day you fly matters: Mon–Wed is ~13% cheaper than weekends (Google 2025), and domestic Tue ~14% cheaper than Sun (Expedia 2026).
+- **Booking windows:**
+  - Domestic US: 21–74 days, best ~42 (CheapAir 2024, 917M fares); Google 2025 best 39 (23–51); Going 2026 1–3 months.
+  - Domestic Brazil: 28–35 days (KAYAK Brasil 2026-04-16); Melhores Destinos says 25–40 days in low season and 60–90 days in high season.
+  - Regional (Americas): 37–87 days (Google, US→Mexico/Caribbean); 70–100 days (CheapAir, US→South America); 31–37 days (KAYAK BR, Brazil→LatAm).
+  - Long-haul: CheapAir Europe 120–160 days, Asia 90–120 days; Going 2–8 months (4–10 at peak); Hopper Europe 3–6 months. Google 2025 says "don't wait for drops" on international.
+- **Too early / too late:**
+  - Domestic US beyond ~205 days costs +36% vs. the prime window (CheapAir).
+  - Hopper expects no deals beyond ~150 days.
+  - Inside 3 weeks, domestic US prices rise +8% / +26% / +59% at the 3-, 2- and 1-week marks (CheapAir).
+- **Short-lead averages:** KAYAK and Expedia average booking-lead figures for international (1–4 weeks) likely reflect who books late, not price behaviour. They are not used for advice.
+- **Sales in Brazil:**
+  - GOL anniversary (~Jan 15)
+  - Semana do Consumidor (~Mar 15)
+  - Livelo (Jun 15)
+  - LATAM (Jun 22)
+  - Azul Fidelidade (Aug 30)
+  - Dia do Cliente (Sep 15)
+  - Smiles (Oct 18)
+  - Black Friday (last Friday of Nov; Smiles Orange Friday up to 100% transfer bonus)
+  - Azul (Dec 15)
+
+  Sources: Melhores Destinos 2026-01-21, Passageiro de Primeira 2025-01-03, InfoMoney 2026-03-12, Melhores Cartões 2025-11-28.
+- **Sales elsewhere:**
+  - USA: January, fall (after Labor Day), Black Friday/Cyber Monday.
+  - UK: January sales.
+  - Mexico: Hot Sale (late May).
+  - Chile: CyberDay (Jun) and CyberMonday (Oct).
+  - Argentina: CyberMonday (Nov).
+  - Colombia: Black Friday.
+- **Seasons:**
+  - Brazil: Jan, Jul, late Dec, early Feb; Carnaval and Réveillon almost never have deals.
+  - Europe peak: Jun–Aug; late Aug/Sep is ~33% cheaper than late June (Hopper 2025).
+  - Caribbean/Mexico: Dec–Apr high; Aug–Sep 20–40% lower, with hurricane risk (Going 2026).
+  - Orlando/Miami: Jun–Jul and Dec high.
+  - Japan: cherry blossom and Golden Week.
+- **Gap:** no published "% of routes that drop later" from Hopper or Google was found.
