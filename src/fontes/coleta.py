@@ -236,6 +236,12 @@ def coletar_posicionamento(run: Path, max_hubs: int = MAX_HUBS) -> dict:
                                         pax=pax, data_volta=centro_volta, candidatos=p.get("hubs") or None)
     n = registrar_opcoes(run, "kiwi", diretos) if diretos else 0
     escolhidos = [h["iata"] for h in hubs if h["direto"]][:max_hubs]
+    # The origin itself is not a hub, but say whether it has nonstop service too (so nobody reads "only GRU/GIG").
+    origem_info, origem_ops = rotas.hubs_servidos(destino, p.get("pais", "BR"), centro_ida, excluir=set(),
+                                                  moeda=p.get("moeda", "BRL"), pax=pax, data_volta=centro_volta,
+                                                  candidatos=[origem])
+    if origem_ops:
+        n += registrar_opcoes(run, "kiwi", origem_ops)
 
     def datas_do_hub(trecho: str) -> list[str]:
         precos: dict[str, float] = {}
@@ -269,7 +275,8 @@ def coletar_posicionamento(run: Path, max_hubs: int = MAX_HUBS) -> dict:
             n += _milhas_janela(run, p, "volta", [destino], escolhidos, *volta, programas, "destino→hubs")
             n += _milhas_janela(run, p, "volta", escolhidos, [origem], volta[0], volta[1] + timedelta(days=1),
                                 programas, "hubs→origem")
-    return {"hubs": hubs, "hubs_detalhados": escolhidos, "opcoes": n}
+    return {"origem": origem_info[0] if origem_info else {"iata": origem, "direto": False},
+            "hubs": hubs, "hubs_detalhados": escolhidos, "opcoes": n}
 
 
 def _analisar_run(run: Path, somente_validadas: bool):
