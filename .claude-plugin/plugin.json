@@ -1,6 +1,6 @@
 {
   "name": "farehunter",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Finds the cheapest way to fly from anywhere, in your currency: cash fares, nearby dates, miles from 30+ airline programs (United, Aeroplan, Flying Blue, Avios, Smiles, LATAM Pass…), buying miles and transferring card points (Amex, Chase, Citi, Livelo…). Multi-language (en/pt/es). Runs on your computer with your own keys; never buys or books anything.",
   "author": {
     "name": "Eduardo Borges"

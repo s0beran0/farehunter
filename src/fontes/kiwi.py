@@ -8,6 +8,7 @@ Validated 2026-10-02: tool `search-flight`, dates dd/mm/yyyy, any `currency`, no
 from __future__ import annotations
 
 import json
+import re
 from datetime import date, datetime
 
 import httpx
@@ -38,9 +39,13 @@ def buscar(
     origem: str, destino: str, ida: str, volta: str | None = None, passageiros: int = 1, flex_dias: int = 0,
     cabine: str = "economy", bagagem_despachada: bool = False, cache: Cache | None = None,
     http: httpx.Client | None = None, moeda: str = "BRL", idioma: str = "en",
+    ida_ate: str | None = None, noites: tuple[int, int] | None = None,
 ) -> list[Opcao]:
+    """`ida_ate` searches departures from `ida` to `ida_ate`; `noites` = (min, max) nights for a round trip
+    (then `volta` is ignored)."""
     cache = cache or Cache()
-    chave = chave_busca(origem, destino, ida, volta, passageiros, flex_dias, cabine, bagagem_despachada, moeda)
+    chave = chave_busca(origem, destino, ida, volta, passageiros, flex_dias, cabine, bagagem_despachada, moeda,
+                        ida_ate, noites)
     if (hit := cache.get(FONTE, chave)) is not None:
         return normalizar(hit, passageiros)
 
@@ -48,9 +53,13 @@ def buscar(
         "flyFrom": origem, "flyTo": destino, "departureDate": _dmy(ida),
         "adults": passageiros, "cabinClass": CABINES[cabine], "currency": moeda.upper(), "locale": idioma,
     }
-    if flex_dias:
+    if ida_ate:
+        args["departureDateTo"] = _dmy(ida_ate)
+    elif flex_dias:
         args["departureDateFlexDays"] = flex_dias
-    if volta:
+    if noites:
+        args["nights_in_dst_from"], args["nights_in_dst_to"] = noites
+    elif volta:
         args["returnDate"] = _dmy(volta)
         if flex_dias:
             args["returnDateFlexDays"] = flex_dias
@@ -78,7 +87,7 @@ def _perna(trecho: dict) -> Perna:
         origem=trecho["from"], destino=trecho["to"], data=partida.date().isoformat(),
         partida=partida.strftime("%H:%M"), chegada=chegada.strftime("%H:%M"),
         cia=(segs[0].get("carrier") if segs else None),
-        voos=[s["flightNumber"] for s in segs if s.get("flightNumber")],
+        voos=[re.sub(r"^([A-Z0-9]{2})(\d)", r"\1 \2", s["flightNumber"]) for s in segs if s.get("flightNumber")],
         conexoes=int(trecho.get("stops") or max(len(segs) - 1, 0)),
         duracao_min=int(trecho.get("durationSeconds", 0) // 60) or None,
         escalas_min=escalas,

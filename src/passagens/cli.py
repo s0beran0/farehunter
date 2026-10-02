@@ -69,14 +69,26 @@ def cmd_run_novo(a) -> int:
     if not origens:
         print("erro: informe --origem ou preencha aeroportos_origem no perfil.yaml", file=sys.stderr)
         return 2
+    noites_min = noites_max = None
+    if a.noites:
+        partes = a.noites.replace(" ", "").split("-")
+        noites_min, noites_max = int(partes[0]), int(partes[-1])
+    if not a.ida and not a.ida_de:
+        print("erro: informe --ida YYYY-MM-DD ou --ida-de/--ida-ate", file=sys.stderr)
+        return 2
     pedido = {
         "origens": origens,
         "destinos": [s.upper() for s in a.destino],
-        "data_ida": a.ida,
+        "data_ida": a.ida or a.ida_de,
         "data_volta": a.volta,
         "flex_dias": a.flex if a.flex is not None else perfil.flex_dias_padrao,
         "passageiros": a.pax or perfil.passageiros_padrao,
         "cabine": a.cabine,
+        "ida_de": a.ida_de,
+        "ida_ate": a.ida_ate or a.ida_de,
+        "noites_min": noites_min,
+        "noites_max": noites_max,
+        "hubs": [h.upper() for h in (a.hubs or [])],
     }
     Pedido(**pedido)  # validates
     from infra import perfil_io
@@ -177,7 +189,7 @@ def cmd_analisar(a) -> int:
         brutos.extend(_ler_json(arq))
     opcoes, avisos_carga = carregar_opcoes(brutos)
 
-    resultado = analisar(opcoes, pedido, perfil, milheiro, hoje=date.today())
+    resultado = analisar(opcoes, pedido, perfil, milheiro, hoje=date.today(), somente_validadas=not a.exploratorio)
     resultado.avisos.extend(avisos_carga[:5])
     if aviso_saldos:
         resultado.avisos.insert(0, aviso_saldos)
@@ -421,7 +433,11 @@ def main(argv: list[str] | None = None) -> int:
     novo = run.add_parser("novo")
     novo.add_argument("--origem", nargs="*")
     novo.add_argument("--destino", nargs="+", required=True)
-    novo.add_argument("--ida", required=True)
+    novo.add_argument("--ida", help="exact outbound date (or use --ida-de/--ida-ate for a window)")
+    novo.add_argument("--ida-de", help="outbound window start (YYYY-MM-DD)")
+    novo.add_argument("--ida-ate", help="outbound window end (YYYY-MM-DD)")
+    novo.add_argument("--noites", help="trip length in nights, e.g. 5-7 or 7 (round trip without a fixed return date)")
+    novo.add_argument("--hubs", nargs="*", help="connection airports allowed for separate tickets (default: config/hubs.yaml for the country)")
     novo.add_argument("--volta")
     novo.add_argument("--flex", type=int)
     novo.add_argument("--pax", type=int)
@@ -467,6 +483,8 @@ def main(argv: list[str] | None = None) -> int:
     an.add_argument("--top", type=int, default=5)
     an.add_argument("--json", action="store_true")
     an.add_argument("--sem-historico", action="store_true")
+    an.add_argument("--exploratorio", action="store_true",
+                    help="include unvalidated options (cache, calendar hints). Never use for the final recommendation")
     an.set_defaults(f=cmd_analisar)
 
     ca = sub.add_parser("cache")

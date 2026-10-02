@@ -18,6 +18,8 @@ class Programa:
     cias: tuple[str, ...] = ()
     seats: str | None = None
     link: str | None = None
+    compra: str | None = None  # verified page to buy miles
+    site: str | None = None  # points programs: where transfers are made
 
 
 @dataclass(frozen=True)
@@ -62,9 +64,11 @@ def registro_de_dict(d: dict) -> Registro:
         r.milhas[pid] = Programa(
             id=pid, nome=v.get("nome", pid), tipo="milhas", moeda=str(v.get("moeda", "USD")).upper(),
             cias=tuple(str(c).upper() for c in v.get("cias") or ()), seats=v.get("seats"), link=v.get("link"),
+            compra=v.get("compra"),
         )
     for pid, v in (d.get("pontos") or {}).items():
-        r.pontos[pid] = Programa(id=pid, nome=v.get("nome", pid), tipo="pontos", moeda=str(v.get("moeda", "USD")).upper())
+        r.pontos[pid] = Programa(id=pid, nome=v.get("nome", pid), tipo="pontos", moeda=str(v.get("moeda", "USD")).upper(),
+                                 site=v.get("site"))
         for destino, cfg in (v.get("parceiros") or {}).items():
             cfg = cfg or {}
             r.parcerias.append(Parceria(pid, destino, float(cfg.get("proporcao") or 1), int(cfg.get("minimo") or 0)))

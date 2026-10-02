@@ -63,6 +63,83 @@ def _observacoes(c: CustoCombinacao) -> str:
     return "<br>".join(x for x in obs if x)
 
 
+SITES_PROGRAMA = {  # official sites for programs whose registry link is a deep-link builder
+    "smiles": "https://www.smiles.com.br",
+    "latam_pass": "https://latampass.latam.com",
+    "azul": "https://www.voeazul.com.br/br/pt/azul-fidelidade",
+}
+
+
+def _site_compra(pid: str) -> str:
+    from infra.programas import carregar
+
+    p = carregar().programa(pid)
+    if p and p.compra:
+        return p.compra
+    site = (p.link if p and p.link and p.link.startswith("http") else None) or SITES_PROGRAMA.get(pid, "")
+    return t("plano.site_programa", site=site)
+
+
+def _itinerario(o) -> str:
+    partes = []
+    for p in o.pernas:
+        voos = " + ".join(p.voos) if p.voos else "—"
+        horario = f"{p.partida or '?'}→{p.chegada or '?'}"
+        partes.append(f"{voos} · {_data_curta(p.data)} {horario} · {p.origem}→{p.destino}")
+    return "; ".join(partes)
+
+
+def _plano(c: CustoCombinacao, pax: int) -> list[str]:
+    """Step-by-step plan for the recommended combination: what to do, where, with which link and how much."""
+    from infra.programas import carregar
+
+    reg = carregar()
+    passos: list[str] = []
+    milhas_ops = [o for o in c.opcoes if o.tipo == "milhas"]
+    for o in milhas_ops:
+        texto = t("plano.conferir", programa=NOMES_PROGRAMA.get(o.programa, o.programa), itinerario=_itinerario(o),
+                  milhas=mil(o.milhas), taxas=brl(o.taxas), link=o.link or "—")
+        passos.append(texto)
+    for f in c.financiamentos:
+        nome = NOMES_PROGRAMA.get(f.programa, f.programa)
+        for tr in f.transferencias:
+            if tr.bonus_pct:
+                bonus = t("plano.bonus", bonus=f"{tr.bonus_pct:.0f}", ate=tr.ate) if tr.ate else \
+                    t("plano.bonus_sem_data", bonus=f"{tr.bonus_pct:.0f}")
+            else:
+                bonus = ""
+            origem = reg.programa(tr.origem)
+            passos.append(t("plano.transferir", pontos=mil(tr.pontos), origem=NOMES_PROGRAMA.get(tr.origem, tr.origem),
+                            programa=nome, bonus=bonus, site=(origem.site if origem and origem.site else "—")))
+        if f.milhas_compradas:
+            cpm = f.custo_compra / f.milhas_compradas * 1000
+            passos.append(t("plano.comprar_milhas", milhas=mil(f.milhas_compradas), programa=nome,
+                            valor=brl(f.custo_compra), cpm=brl(cpm), link=_site_compra(f.programa)))
+    for o in c.opcoes:
+        trecho = t(f"trecho.{o.trecho}")
+        if o.tipo == "milhas":
+            texto = t("plano.emitir", programa=NOMES_PROGRAMA.get(o.programa, o.programa), trecho=trecho,
+                      itinerario=_itinerario(o), milhas=mil(o.milhas * pax), taxas=brl(o.taxas * pax), pax=pax,
+                      link=o.link or "—")
+            if not o.taxas_confirmadas:
+                texto += t("plano.taxa_nao_confirmada")
+        else:
+            texto = t("plano.comprar_dinheiro", trecho=trecho, itinerario=_itinerario(o), preco=brl((o.preco or 0) * pax),
+                      pax=pax, link=o.link or "—")
+        passos.append(texto)
+    for grupo in c.bilhetes_por_direcao().values():
+        for a, b in zip(grupo, grupo[1:]):
+            chegada, saida = a.pernas[-1].chegada_dt(), b.pernas[0].partida_dt()
+            if chegada and saida:
+                passos.append(t("plano.bilhetes", hub=a.pernas[-1].destino, chegada=chegada.strftime("%H:%M"),
+                                partida=saida.strftime("%H:%M"), horas=round((saida - chegada).total_seconds() / 3600, 1)))
+    if c.bagagem:
+        passos.append(t("plano.bagagem", valor=brl(c.bagagem)))
+    passos.append(t("plano.total", custo=brl(c.custo), detalhe=_detalhe_custo(c)))
+    passos.append(t("plano.conferencia"))
+    return [f"{i}. {p}" for i, p in enumerate(passos, 1)]
+
+
 def _datas(ida: str, volta: str | None) -> str:
     return _data_curta(ida) + (f" → {_data_curta(volta)}" if volta else "")
 
@@ -120,24 +197,35 @@ def gerar_relatorio(
     p = r.pedido
     linhas: list[str] = []
     rota = f"{'/'.join(p.origens)} → {'/'.join(p.destinos)}"
-    datas = _datas(p.data_ida, p.data_volta) + ("" if p.data_volta else t("rel.so_ida"))
-    linhas.append(t("rel.titulo", rota=rota, datas=datas, pax=p.passageiros, flex=p.flex_dias))
+    if p.datas_exatas():
+        datas = _datas(p.data_ida, p.data_volta) + ("" if p.data_volta else t("rel.so_ida"))
+        linhas.append(t("rel.titulo", rota=rota, datas=datas, pax=p.passageiros, flex=p.flex_dias))
+    else:
+        ini, fim = p.janela_ida()
+        noites = "" if p.noites_min is None else (
+            str(p.noites_min) if p.noites_max in (None, p.noites_min) else f"{p.noites_min}–{p.noites_max}")
+        linhas.append(t("rel.titulo_janela", rota=rota, ini=_data_curta(ini.isoformat()), fim=_data_curta(fim.isoformat()),
+                        noites=noites, pax=p.passageiros))
     linhas.append("")
 
     melhor = r.principais[0] if r.principais else (r.ranking[0] if r.ranking else None)
     if melhor is None:
-        linhas.append(t("rel.nenhuma"))
+        linhas.append(t("rel.nenhuma_validada", motivo=t("rel.sem_validada_motivo")))
     else:
         eco = r.economia(melhor)
         frase = t("rel.mais_barato", descricao=melhor.descricao(), datas=_datas(melhor.data_ida, melhor.data_volta),
                   cias=_cias(melhor), custo=brl(melhor.custo))
         if melhor is r.referencia:
-            frase += t("rel.eh_referencia")
+            frase += t("rel.eh_referencia") if p.datas_exatas() else t("rel.eh_referencia_janela")
         elif eco is not None:
             frase += t("rel.economia", economia=brl(eco), referencia=brl(r.referencia.custo))
         else:
             frase += "."
         linhas.append(frase)
+        linhas.append("")
+        linhas.append(t("plano.titulo"))
+        linhas.append("")
+        linhas.extend(_plano(melhor, p.passageiros))
     linhas.append("")
 
     linhas.append(t("rel.top", n=top))
@@ -203,23 +291,5 @@ def gerar_relatorio(
     linhas.append(t("rel.precos_mudam"))
     linhas.append("")
 
-    linhas.append(t("rel.proximos"))
-    linhas.append("")
-    if melhor is not None:
-        for o in melhor.opcoes:
-            trecho = t(f"trecho.{o.trecho}")
-            link = o.link or t("rel.buscar_no_site")
-            if o.tipo == "milhas":
-                linhas.append(t("rel.passo_emitir", trecho=trecho, alvo=NOMES_PROGRAMA.get(o.programa, o.programa), link=link))
-            else:
-                linhas.append(t("rel.passo_comprar", trecho=trecho, alvo=o.fonte, link=link))
-        for f in melhor.financiamentos:
-            nome = NOMES_PROGRAMA.get(f.programa, f.programa)
-            if f.milhas_compradas:
-                linhas.append(t("rel.passo_comprar_milhas", milhas=mil(f.milhas_compradas), programa=nome))
-            for tr in f.transferencias:
-                linhas.append(t("rel.passo_transferir", pontos=mil(tr.pontos), origem=tr.origem, programa=nome)
-                              + (t("rel.passo_bonus", bonus=f"{tr.bonus_pct:.0f}") if tr.bonus_pct else "."))
-    linhas.append("")
     linhas.append(t("rel.rodape"))
     return "\n".join(linhas)

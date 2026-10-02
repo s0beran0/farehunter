@@ -360,3 +360,77 @@ def test_user_miles_table_wins_and_new_programs_come_from_the_shipped_table():
     assert m.programas["smiles"].cpm_compra_atual == 14.0
     assert m.programas["united"].cpm_valor_uso == 12
     assert next(t for t in m.transferencias if t.destino == "smiles" and t.origem == "livelo").bonus_pct == 80
+
+
+# --- windows, trip length, separate tickets, validation --------------------------------------------------
+
+def _voo(data, origem, destino, partida, chegada, voo, preco=None, trecho="ida", dur=None, **kw):
+    perna = Perna(origem=origem, destino=destino, data=data, partida=partida, chegada=chegada, cia=voo[:2],
+                  voos=[voo], duracao_min=dur)
+    if preco is None:
+        return Opcao(fonte="seats_aero", tipo="milhas", programa="smiles", trecho=trecho, pernas=[perna], **kw)
+    return Opcao(fonte="google_flights", tipo="dinheiro", trecho=trecho, pernas=[perna], preco=preco, **kw)
+
+
+def test_trip_length_window_is_enforced():
+    p = Pedido(origens=["BSB"], destinos=["GIG"], data_ida="2026-11-02", ida_de="2026-11-02", ida_ate="2026-11-26",
+               noites_min=5, noites_max=7)
+    ida = _voo("2026-11-11", "BSB", "GIG", "12:30", "14:20", "G3 1806", 300)
+    voltas = [_voo(d, "GIG", "BSB", "15:10", "17:00", "G3 1736", 280, trecho="volta")
+              for d in ("2026-11-11", "2026-11-15", "2026-11-17", "2026-11-18", "2026-11-22")]
+    r = analisar([ida, *voltas], p, perfil(), milheiro(), HOJE)
+    assert sorted(c.data_volta for c in r.ranking) == ["2026-11-17", "2026-11-18"]  # 6 and 7 nights only
+
+
+def test_separate_tickets_through_a_hub_need_a_feasible_connection():
+    p = Pedido(origens=["BSB"], destinos=["MIA"], data_ida="2026-11-20")
+    direto = _voo("2026-11-20", "BSB", "MIA", "23:00", "07:00", "AA 214", 3200, dur=480)
+    pos_ok = _voo("2026-11-20", "BSB", "GRU", "12:00", "13:45", "G3 1000", 250, dur=105)
+    pos_apertado = _voo("2026-11-20", "BSB", "GRU", "18:00", "19:45", "G3 1002", 200, dur=105)
+    principal = _voo("2026-11-20", "GRU", "MIA", "21:30", "05:30", "LA 8180", 2100, dur=480)
+    r = analisar([direto, pos_ok, pos_apertado, principal], p, perfil(), milheiro(), HOJE)
+    melhor = r.ranking[0]
+    assert [o.pernas[0].voos[0] for o in melhor.opcoes] == ["G3 1000", "LA 8180"]  # 7h45 connection; 1h45 is too short
+    assert melhor.custo == 2350 and "bilhetes_separados" in melhor.estrategias
+    assert any("GRU" in r_ for r_ in melhor.riscos) and melhor.hubs() == ["GRU"]
+    assert all([o.pernas[0].voos[0] for o in c.opcoes] != ["G3 1002", "LA 8180"] for c in r.ranking)
+
+
+def test_arrival_day_inferred_from_duration_across_midnight():
+    perna = Perna("GRU", "MIA", "2026-11-20", partida="21:30", chegada="05:30", duracao_min=480)
+    assert perna.chegada_dt().isoformat() == "2026-11-21T05:30:00"
+
+
+def test_recommendation_mode_ignores_unvalidated_options():
+    p = Pedido(origens=["BSB"], destinos=["GIG"], data_ida="2026-11-11")
+    cache = _voo("2026-11-11", "BSB", "SDU", "12:30", "14:20", "G3 1806", milhas=11_200, taxas=40)
+    cache.pernas[0].destino = "GIG"
+    grade = Opcao(fonte="google_flights", tipo="dinheiro", preco=150, pernas=[Perna("BSB", "GIG", "2026-11-11")])
+    real = _voo("2026-11-11", "BSB", "GIG", "07:00", "08:50", "LA 3001", 520)
+    tudo = analisar([cache, grade, real], p, perfil(), milheiro(), HOJE)
+    assert tudo.ranking[0].opcoes[0] is grade  # exploratory mode still sees hints
+    so_validas = analisar([cache, grade, real], p, perfil(), milheiro(), HOJE, somente_validadas=True)
+    assert [c.opcoes[0] for c in so_validas.ranking] == [real]
+    assert any("2" in a for a in so_validas.avisos)
+
+
+def test_plan_is_complete_step_by_step_with_links_and_amounts():
+    from calculo.relatorio import gerar_relatorio
+
+    p = Pedido(origens=["GRU"], destinos=["REC"], data_ida="2026-12-10", data_volta="2026-12-17", flex_dias=0)
+    ida = _voo("2026-12-10", "GRU", "REC", "07:00", "10:10", "G3 1612", milhas=20_000, taxas=40,
+               confirmado_ao_vivo=True, link="https://smiles.example/emitir")
+    volta = _voo("2026-12-17", "REC", "GRU", "15:00", "18:10", "LA 3676", 600, trecho="volta",
+                 link="https://kiwi.example/book")
+    ref = _voo("2026-12-10", "GRU", "REC", "09:00", "12:10", "AD 4000", 900, link="https://g.example")
+    ref_v = _voo("2026-12-17", "REC", "GRU", "09:00", "12:10", "AD 4001", 900, trecho="volta", link="https://g.example")
+    pf = perfil(programas={"smiles": {"saldo": 5_000}})
+    r = analisar([ida, volta, ref, ref_v], p, pf, milheiro(transferencias={}), HOJE, somente_validadas=True)
+    texto = gerar_relatorio(r, ["kiwi"], {})
+    plano = texto.split("## Como fazer")[1].split("## Top")[0]
+    assert "Confira a disponibilidade" in plano and "G3 1612" in plano and "https://smiles.example/emitir" in plano
+    assert "Compre 15.000 milhas Smiles" in plano and "https://www.smiles.com.br/comprar-milhas" in plano
+    assert "LA 3676" in plano and "https://kiwi.example/book" in plano
+    assert "**Total:**" in plano and "taxa de embarque não confirmada" in plano
+    # order: check → buy miles → book award → buy cash
+    assert plano.index("Confira") < plano.index("Compre 15.000") < plano.index("Emita") < plano.index("Compre a passagem")

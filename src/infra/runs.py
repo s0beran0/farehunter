@@ -48,7 +48,11 @@ def registrar_falha(run: Path, fonte: str, motivo: str) -> None:
         motivo_total = "; ".join(x for x in [st.get("motivo", ""), f"parcial: {motivo}"] if x)
         _gravar_status(run, fonte, True, motivo=motivo_total, n=st["opcoes"])
     else:
-        _gravar_status(run, fonte, False, motivo=motivo)
+        anterior = (st or {}).get("motivo", "")
+        motivos = [m for m in anterior.split("; ") if m] if anterior else []
+        if motivo not in motivos:
+            motivos.append(motivo)
+        _gravar_status(run, fonte, False, motivo="; ".join(motivos[-5:]))
 
 
 def _arquivos_opcoes(run: Path):
@@ -85,6 +89,7 @@ def confirmar(run: Path, opcao_id: str, fonte_confirmacao: str, milhas: int | No
             o["milhas"] = milhas
         if taxas is not None:
             o["taxas"] = taxas
+            o["taxas_confirmadas"] = True
         if preco is not None:
             o["preco"] = preco
         if link:

@@ -19,6 +19,10 @@ def _cmd_coletar(a) -> int:
         resumo = coleta.coletar_dinheiro(run, fontes)
     elif a.tipo == "datas":
         resumo = coleta.coletar_datas(run, fontes)
+    elif a.tipo == "posicionamento":
+        resumo = coleta.coletar_posicionamento(run)
+    elif a.tipo == "detalhes":
+        resumo = coleta.coletar_detalhes(run)
     else:
         resumo = coleta.coletar_milhas(run)
     from infra.runs import status
@@ -56,9 +60,21 @@ def _cmd_buscar(a) -> int:
     return 0
 
 
+def _cmd_pendencias(a) -> int:
+    from fontes import coleta
+
+    _imprimir(coleta.pendencias(Path(a.run), a.max))
+    return 0
+
+
 def registrar_comandos(sub) -> None:
+    pe = sub.add_parser("pendencias", help="what still needs validation before recommending")
+    pe.add_argument("--run", required=True)
+    pe.add_argument("--max", type=int, default=4)
+    pe.set_defaults(f=_cmd_pendencias)
+
     co = sub.add_parser("coletar", help="run the searches of one kind and write them into the run directory")
-    co.add_argument("tipo", choices=["dinheiro", "datas", "milhas"])
+    co.add_argument("tipo", choices=["dinheiro", "datas", "milhas", "posicionamento", "detalhes"])
     co.add_argument("--run", required=True)
     co.add_argument("--fontes", nargs="*", help="google_flights kiwi (default: both)")
     co.set_defaults(f=_cmd_coletar)

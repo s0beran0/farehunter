@@ -33,44 +33,58 @@ Balances are **never stored**: they change with every purchase, transfer and exp
 - Never ask for logins or passwords to check balances.
 
 ## 1. Understand the request
-Extract origin(s) and destination(s) as IATA codes, outbound date, return date (or one-way), flexibility (default `flex_dias_padrao`; "between Dec 10 and 20" → center date + flex), passengers, cabin (default economy) and checked bag.
+Extract origin(s) and destination(s) as IATA codes (include every airport of the city when the user says "any airport", e.g. Rio → GIG SDU), passengers, cabin (default economy) and checked bag. Dates:
+- **Exact dates** → `--ida` / `--volta`.
+- **A window and a trip length** ("leave between Nov 2 and 26, 5 to 7 days") → `--ida-de 2026-11-02 --ida-ate 2026-11-26 --noites 5-7`. The engine enforces it; never filter dates by hand.
 Without an origin, use `aeroportos_origem` from the profile. Ask **only** for what is missing and essential (destination or date).
 
 ## 2. Prepare
 ```bash
 uv run --project "${CLAUDE_PLUGIN_ROOT}" farehunter milheiro checar
-uv run --project "${CLAUDE_PLUGIN_ROOT}" farehunter run novo --origem <IATA...> --destino <IATA...> --ida YYYY-MM-DD [--volta YYYY-MM-DD] [--flex N] [--pax N] [--cabine economy] --idioma <pt|en|es> [--moeda USD] [--pais US] --saldo smiles=45000 livelo=12000
+uv run --project "${CLAUDE_PLUGIN_ROOT}" farehunter run novo --origem <IATA...> --destino <IATA...> (--ida YYYY-MM-DD [--volta YYYY-MM-DD] [--flex N] | --ida-de YYYY-MM-DD --ida-ate YYYY-MM-DD --noites N-M) [--pax N] [--cabine economy] --idioma <pt|en|es> [--moeda USD] [--pais US] [--hubs GRU GIG ...] --saldo smiles=45000 livelo=12000
 ```
-- If `milheiro checar` reports values older than 15 days, tell the user and offer `/farehunter:miles` first (or continue with a warning).
+- If `milheiro checar` reports values older than 15 days, mention it in one line and continue.
 - Keep the absolute `run` path printed by `run novo`; below it is `$RUN`.
 
 ## 3. Collect in parallel
 Launch **in the same message** three plugin subagents with the absolute `$RUN` path:
-- `farehunter:cash-researcher` — exact dates.
-- `farehunter:dates-researcher` — ±N date grid.
-- `farehunter:miles-researcher` in mode `collect` — every award program Seats.aero covers that matters for this user (their programs + transfer partners of their points; all programs when they have none). No LATAM Pass yet.
+- `farehunter:cash-researcher` — exact dates (it skips itself for date windows).
+- `farehunter:dates-researcher` — the date grid (windows and trip lengths included).
+- `farehunter:miles-researcher` in mode `collect` — every award program Seats.aero covers that matters for this user. No LATAM Pass yet.
 
-## 4. First analysis
+## 4. Separate tickets through a hub (when it can pay off)
+Run it whenever the trip is **international or long-haul**, or the origin is not a big hub (e.g. BSB→MIA: GRU, GIG, VCP, REC, FOR… may have cheaper flights to Miami, and BSB→hub is a cheap domestic hop):
 ```bash
-uv run --project "${CLAUDE_PLUGIN_ROOT}" farehunter analisar --run "$RUN" --json --sem-historico
+uv run --project "${CLAUDE_PLUGIN_ROOT}" farehunter coletar posicionamento --run "$RUN"
 ```
-Read `top` (full list in `$RUN/ranking.json`).
+It checks which gateway airports of the country (config/hubs.yaml, or `--hubs` from `run novo`) fly to the destination and how cheaply, details the best ones with specific flights, and fetches the positioning flights from/to the origin. The engine then composes separate tickets with a minimum connection time (`conexao_bilhetes_separados_min`, default 3 h) and flags the risks.
 
-## 5. LATAM Pass and selective live confirmation
-- **LATAM Pass** (only relevant for LATAM flights): if the user has a LATAM Pass balance worth using, or the top has LATAM cash flights, call `farehunter:miles-researcher` in mode `collect` asking for LATAM Pass via the browser for at most the 3 most promising date pairs from the matrix. If the site requires login, tell the user the login is **manual**, in the browser window (the plugin's browser profile keeps the session). If they don't want to log in, skip LATAM and say so.
-- **Confirm:** take the 1–3 best top options that have a non-empty `programas_milhas_cache`, and call `farehunter:miles-researcher` in mode `confirm` with those option ids (`opcoes[].id` where `tipo == "milhas"` and `confirmado_ao_vivo == false`).
-- Final analysis (the only one that writes the price history):
-  ```bash
-  uv run --project "${CLAUDE_PLUGIN_ROOT}" farehunter analisar --run "$RUN"
-  ```
+## 5. Validate until the winner is real (mandatory loop)
+Calendar prices (no specific flight) and Seats.aero awards (cache) are **hints, never answers**. Repeat at most 3 rounds:
+```bash
+uv run --project "${CLAUDE_PLUGIN_ROOT}" farehunter pendencias --run "$RUN" --max 4
+```
+- `detalhar` not empty → `uv run --project "${CLAUDE_PLUGIN_ROOT}" farehunter coletar detalhes --run "$RUN"` (per-date searches with specific flights).
+- `confirmar_milhas` not empty → `farehunter:miles-researcher` in mode `confirm` with those ids (live check on the program's site; it removes awards that are gone and updates miles/taxes).
+- `pronto: true` → stop. Also stop when the browser page budget runs out; what was not validated simply stays out of the recommendation.
+- **LATAM Pass** (only for LATAM flights, only if the user has a LATAM Pass balance worth using): ask the miles researcher for at most 3 date pairs; login is manual by the user. If they don't log in, skip it and say so in one line.
 
-## 6. Answer
-Show the report printed by `analisar` (summary, top 5, date matrix, miles, sources, next steps), in the user's language. Before it, write 2–4 sentences explaining **why** the winner wins (e.g. "the Smiles award on the return is worth R$19 per 1,000 miles, above the R$16.50 purchase cost"; "leaving one day earlier saves R$85") — using only numbers from the report.
-If a strategy depends on buying miles or transferring points, remind them: values come from the miles-value table (`/farehunter:miles` updates it) with the date shown in the report, promotions end, and cached award prices must be checked on the program's site.
+## 6. Final analysis (validated data only)
+```bash
+uv run --project "${CLAUDE_PLUGIN_ROOT}" farehunter analisar --run "$RUN"
+```
+This mode ranks **only validated options** (cash with a specific flight fetched now, awards confirmed live) and writes the price history. `--exploratorio` exists only for debugging; never base an answer on it.
+
+## 7. Answer — direct and complete
+1. **One recommendation**, first line: what to buy, when, total cost, and the saving vs the plain cash reference. 1–3 sentences on **why** it wins, using only numbers from the report.
+2. **The step-by-step plan** from the report ("How to do it"), in the user's language and complete: check availability → transfer points / buy miles (amounts, links, bonus deadlines) → book each award (flight, time, miles + taxes, link) → buy each cash ticket (flight, time, price, link) → separate-ticket instructions → bags → total → final checks. Never shorten it to "buy at X".
+3. Then the short supporting data (top alternatives, date matrix, miles verdicts) and the sources that failed, if any.
+- **Never present unvalidated numbers** (cache, calendar) as options, prices or estimates. Don't list them.
+- **No menus at the end.** Don't ask "which path do you prefer?". Only if there is **no** validated option at all, say so plainly, say what could not be validated and why, and do the single most useful next step yourself (e.g. widen the window) instead of offering a list.
 
 ## Rules (mandatory)
 - Never buy, book, transfer points or pay. Stop at the link.
 - Never ask for, store or log passwords for loyalty programs, banks or cards.
-- Always say what is **cached** vs **confirmed live**, and that prices change until ticketing.
+- Recommend only what was validated in this run; prices still change until ticketing — say it once.
 - If a source failed, say which one and what it means for the result (e.g. "without Google Flights, only 15 Kiwi options were compared").
 - Mileage brokers (123milhas, MaxMilhas, HotMilhas…) are out of scope on purpose (legal and cancellation risk).

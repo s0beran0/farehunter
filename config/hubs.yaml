@@ -1,0 +1,20 @@
+# Gateway airports per country, used to look for cheaper separate tickets
+# (e.g. BSB→GRU on one ticket + GRU→MIA on another, instead of BSB→MIA).
+# The search checks which of these have flights to the destination and how much it costs to reach them.
+# Countries not listed: the agent passes hubs explicitly (`run novo --hubs ...`).
+
+BR: [GRU, GIG, VCP, BSB, CNF, REC, FOR, SSA, POA, CWB, FLN, BEL, MAO, NAT]
+US: [JFK, EWR, MIA, FLL, MCO, ATL, IAH, DFW, ORD, LAX, SFO, IAD, BOS, SEA]
+CA: [YYZ, YUL, YVR, YYC]
+MX: [MEX, CUN, GDL, MTY]
+AR: [EZE, AEP, COR, MDZ]
+CL: [SCL]
+CO: [BOG, MDE, CTG]
+PE: [LIM]
+PT: [LIS, OPO, FAO]
+ES: [MAD, BCN]
+GB: [LHR, LGW, MAN]
+FR: [CDG, ORY]
+DE: [FRA, MUC]
+IT: [FCO, MXP]
+AU: [SYD, MEL, BNE, PER]

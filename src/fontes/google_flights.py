@@ -10,11 +10,60 @@ and the subagent records the source as unavailable.
 
 from __future__ import annotations
 
+import json
+import time
 from datetime import date, timedelta
 from urllib.parse import quote
 
-from infra.cache import Cache, chave_busca
+from infra.cache import CACHE_DIR, Cache, chave_busca
 from normalizacao.schema import Opcao, Perna
+
+# Throttle: Google answers HTTP 429 when hit too often. Keep a gap between calls and, after a 429, stop calling
+# it for a while (shared by every process through a small state file) instead of retrying and making it worse.
+INTERVALO_MIN_S = 2.0
+PAUSA_APOS_429_S = 30 * 60
+ESTADO_FREIO = CACHE_DIR / "google_freio.json"
+
+
+class LimiteGoogle(RuntimeError):
+    """Google is rate-limiting this connection (HTTP 429). Don't retry and don't fall back to more Google calls."""
+
+
+def _ler_freio() -> dict:
+    try:
+        return json.loads(ESTADO_FREIO.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def _gravar_freio(estado: dict) -> None:
+    try:
+        ESTADO_FREIO.parent.mkdir(parents=True, exist_ok=True)
+        ESTADO_FREIO.write_text(json.dumps(estado), encoding="utf-8")
+    except OSError:
+        pass
+
+
+def _antes_de_chamar() -> None:
+    estado = _ler_freio()
+    agora = time.time()
+    if estado.get("bloqueado_ate", 0) > agora:
+        minutos = round((estado["bloqueado_ate"] - agora) / 60)
+        raise LimiteGoogle(f"Google Flights is rate-limiting this connection (HTTP 429); paused for ~{minutos} more min")
+    espera = estado.get("ultima", 0) + INTERVALO_MIN_S - agora
+    if espera > 0:
+        time.sleep(espera)
+    estado["ultima"] = time.time()
+    _gravar_freio(estado)
+
+
+def _apos_erro(e: Exception) -> None:
+    if "429" in str(e):
+        estado = _ler_freio()
+        estado["bloqueado_ate"] = time.time() + PAUSA_APOS_429_S
+        _gravar_freio(estado)
+        raise LimiteGoogle(f"Google Flights is rate-limiting this connection (HTTP 429); paused for "
+                           f"{PAUSA_APOS_429_S // 60} min") from e
 
 IDIOMA_GOOGLE = {"pt": "pt-BR", "en": "en", "es": "es"}
 
@@ -108,13 +157,15 @@ def buscar_data(
         stops=models.MaxStops.ANY,
         sort_by=models.SortBy.CHEAPEST,
     )
+    _antes_de_chamar()
     try:
         if volta:
             brutos = search.SearchFlights().search(filtros, top_n=5, **loc) or []
         else:
             brutos = search.SearchFlights().search(filtros, **loc) or []
     except Exception as e:  # fli raises several exception types when it breaks
-        raise FonteIndisponivel(f"fli falhou na busca por data: {type(e).__name__}: {e}") from e
+        _apos_erro(e)
+        raise FonteIndisponivel(f"fli failed on the per-date search: {type(e).__name__}: {e}") from e
     if not brutos:
         raise FonteIndisponivel("fli returned an empty list (Google may be blocking)")
 
@@ -166,10 +217,12 @@ def grade(
     )
     if noites is not None:
         kwargs["duration"] = noites
+    _antes_de_chamar()
     try:
         dias = search.SearchDates().search(models.DateSearchFilters(**kwargs), **_loc(moeda, pais)) or []
     except Exception as e:
-        raise FonteIndisponivel(f"fli falhou na grade de datas: {type(e).__name__}: {e}") from e
+        _apos_erro(e)
+        raise FonteIndisponivel(f"fli failed on the date grid: {type(e).__name__}: {e}") from e
     if not dias:
         raise FonteIndisponivel("empty date grid (Google may be blocking the calendar)")
 

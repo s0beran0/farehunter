@@ -36,9 +36,9 @@ def test_formatos_por_idioma():
 
 
 @pytest.mark.parametrize("idioma,esperados", [
-    ("en", ["# Flights", "## Date matrix", "## Miles", "break-even CPM", "with Smiles miles", "## Next steps"]),
-    ("es", ["# Vuelos", "## Matriz de fechas", "## Millas", "CPM de equilibrio", "con millas Smiles", "## Próximos pasos"]),
-    ("pt", ["# Passagens", "## Matriz de datas", "## Milhas", "CPM de equilíbrio", "em milhas Smiles", "## Próximos passos"]),
+    ("en", ["# Flights", "## Date matrix", "## Miles", "break-even CPM", "with Smiles miles", "## How to do it"]),
+    ("es", ["# Vuelos", "## Matriz de fechas", "## Millas", "CPM de equilibrio", "con millas Smiles", "## Cómo hacerlo"]),
+    ("pt", ["# Passagens", "## Matriz de datas", "## Milhas", "CPM de equilíbrio", "em milhas Smiles", "## Como fazer"]),
 ])
 def test_relatorio_no_idioma(idioma, esperados):
     i18n.definir(idioma)

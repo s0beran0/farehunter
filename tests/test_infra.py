@@ -160,3 +160,18 @@ def test_cents_each_format_from_a_real_feed_title():
 
     r = extrair("Buy Alaska Atmos Rewards Points With 100% Bonus (1.88 Cents Each): Worth It?")
     assert r["centavos_por_milha"] == 1.88 and r["bonus_pct_max"] == 100 and r["programas"] == ["alaska"]
+
+
+def test_google_rate_limit_pauses_further_calls(tmp_path, monkeypatch):
+    import pytest as _pytest
+
+    from fontes import google_flights as gf
+
+    monkeypatch.setattr(gf, "ESTADO_FREIO", tmp_path / "freio.json")
+    monkeypatch.setattr(gf, "INTERVALO_MIN_S", 0)
+    gf._antes_de_chamar()  # no pause yet
+    with _pytest.raises(gf.LimiteGoogle):
+        gf._apos_erro(RuntimeError("Google Flights returned an error response (HTTP 429)"))
+    with _pytest.raises(gf.LimiteGoogle, match="paused"):
+        gf._antes_de_chamar()
+    gf._apos_erro(RuntimeError("HTTP 500"))  # other errors don't trigger the pause logic

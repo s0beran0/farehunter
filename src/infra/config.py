@@ -70,6 +70,7 @@ class Perfil:
     pontos_transferiveis: dict[str, int] = field(default_factory=dict)
     valor_minimo_economia: float = 50.0
     conexao_curta_min: int = 60
+    conexao_bilhetes_separados_min: int = 180  # minimum layover between separate tickets
     limites: dict[str, int] = field(default_factory=dict)
 
     def custo_bagagem(self, cia: str | None) -> float:
@@ -207,6 +208,7 @@ def perfil_de_dict(d: dict[str, Any]) -> Perfil:
         pontos_transferiveis={k: int(v or 0) for k, v in (d.get("pontos_transferiveis") or {}).items()},
         valor_minimo_economia=float(d.get("valor_minimo_economia", 50)),
         conexao_curta_min=int(d.get("conexao_curta_min", 60)),
+        conexao_bilhetes_separados_min=int(d.get("conexao_bilhetes_separados_min", 180)),
         limites={k: int(v) for k, v in (d.get("limites") or {}).items()},
     )
 

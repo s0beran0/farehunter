@@ -6,7 +6,9 @@
 #   seats    Seats.aero source id (null = not covered, e.g. LATAM Pass)
 #   moeda    reference currency of this program's CPM values in milheiro.yaml
 #   link     "smiles" | "latam_pass" | "azul" (deep link with route and date) or the award-search URL
+#   compra   (optional) verified page to buy miles; without it the plan points to the program's site
 # pontos.<id>:  transferable points currency (credit card / bank)
+#   site     official site where transfers are made (log in → transfer points)
 #   parceiros: {<miles program id>: {proporcao: points per mile, minimo: minimum points per transfer}}
 #
 # Sources (checked 2026-10-02, see docs/research.md §10): award-search URLs were fetched one by one; sites that
@@ -18,7 +20,7 @@
 
 milhas:
   # --- Brazil ---
-  smiles:      {nome: Smiles, cias: [G3], seats: smiles, moeda: BRL, link: smiles}
+  smiles:      {nome: Smiles, cias: [G3], seats: smiles, moeda: BRL, link: smiles, compra: "https://www.smiles.com.br/comprar-milhas"}  # compra verified 2026-10-02
   latam_pass:  {nome: LATAM Pass, cias: [LA, JJ], seats: null, moeda: BRL, link: latam_pass}
   azul:        {nome: Azul Fidelidade, cias: [AD], seats: azul, moeda: BRL, link: azul}
   # --- North America ---
@@ -56,15 +58,16 @@ milhas:
 
 pontos:
   # --- Brazil (blogs, Sep 2026; docs/research.md §5.6) ---
-  livelo:      {nome: Livelo, moeda: BRL, parceiros: {smiles: {proporcao: 1, minimo: 10000}, latam_pass: {proporcao: 1, minimo: 12000}, azul: {proporcao: 1, minimo: 1000}}}
-  esfera:      {nome: Esfera, moeda: BRL, parceiros: {smiles: {proporcao: 1, minimo: 30000}, latam_pass: {proporcao: 1, minimo: 30000}, azul: {proporcao: 1, minimo: 30000}, iberia: {proporcao: 2, minimo: 30000}}}
-  inter_loop:  {nome: Inter Loop, moeda: BRL, parceiros: {smiles: {proporcao: 1, minimo: 0}, azul: {proporcao: 1, minimo: 0}}}
-  atomos:      {nome: C6 Átomos, moeda: BRL, parceiros: {smiles: {proporcao: 1, minimo: 1000}, latam_pass: {proporcao: 1, minimo: 100}, azul: {proporcao: 1, minimo: 100}}}
+  livelo:      {nome: Livelo, moeda: BRL, site: "https://www.livelo.com.br", parceiros: {smiles: {proporcao: 1, minimo: 10000}, latam_pass: {proporcao: 1, minimo: 12000}, azul: {proporcao: 1, minimo: 1000}}}
+  esfera:      {nome: Esfera, moeda: BRL, site: "https://www.esfera.com.vc", parceiros: {smiles: {proporcao: 1, minimo: 30000}, latam_pass: {proporcao: 1, minimo: 30000}, azul: {proporcao: 1, minimo: 30000}, iberia: {proporcao: 2, minimo: 30000}}}
+  inter_loop:  {nome: Inter Loop, moeda: BRL, site: "https://inter.co", parceiros: {smiles: {proporcao: 1, minimo: 0}, azul: {proporcao: 1, minimo: 0}}}
+  atomos:      {nome: C6 Átomos, moeda: BRL, site: "https://www.c6bank.com.br", parceiros: {smiles: {proporcao: 1, minimo: 1000}, latam_pass: {proporcao: 1, minimo: 100}, azul: {proporcao: 1, minimo: 100}}}
 
   # --- United States (minimums of 1,000 are from a search summary; uncertain) ---
   amex_mr:
     nome: Amex Membership Rewards (US)
     moeda: USD
+    site: "https://www.americanexpress.com/en-us/rewards/membership-rewards/"
     parceiros:
       aeroplan: {proporcao: 1, minimo: 1000}
       flyingblue: {proporcao: 1, minimo: 1000}
@@ -83,6 +86,7 @@ pontos:
   chase_ur:
     nome: Chase Ultimate Rewards
     moeda: USD
+    site: "https://www.chase.com/personal/credit-cards/ultimate-rewards"
     parceiros:
       aeroplan: {proporcao: 1, minimo: 1000}
       flyingblue: {proporcao: 1, minimo: 1000}
@@ -94,6 +98,7 @@ pontos:
   citi_ty:  # 1:1 on Strata Elite/Premier and Prestige; other Citi cards transfer at 1:0.7 (set proporcao 1.43 in milheiro.yaml)
     nome: Citi ThankYou Points
     moeda: USD
+    site: "https://www.citi.com"
     parceiros:
       american: {proporcao: 1, minimo: 1000}
       flyingblue: {proporcao: 1, minimo: 1000}
@@ -111,6 +116,7 @@ pontos:
   capitalone:
     nome: Capital One Miles
     moeda: USD
+    site: "https://www.capitalone.com"
     parceiros:
       aeromexico: {proporcao: 1, minimo: 1000}
       aeroplan: {proporcao: 1, minimo: 1000}
@@ -130,6 +136,7 @@ pontos:
   bilt:  # minimum 2,000 for Blue members, 1,000 for Silver and above
     nome: Bilt Rewards
     moeda: USD
+    site: "https://www.biltrewards.com"
     parceiros:
       aeroplan: {proporcao: 1, minimo: 2000}
       flyingblue: {proporcao: 1, minimo: 2000}
@@ -147,6 +154,7 @@ pontos:
   wellsfargo:
     nome: Wells Fargo Rewards
     moeda: USD
+    site: "https://www.wellsfargo.com"
     parceiros:
       flyingblue: {proporcao: 1, minimo: 0}
       lifemiles: {proporcao: 1, minimo: 0}
@@ -158,6 +166,7 @@ pontos:
   amex_mr_ca:
     nome: Amex Membership Rewards (Canada)
     moeda: CAD
+    site: "https://www.americanexpress.com/en-ca/"
     parceiros:
       aeroplan: {proporcao: 1, minimo: 1000}
       flyingblue: {proporcao: 1, minimo: 1000}
@@ -167,6 +176,7 @@ pontos:
   amex_mr_uk:
     nome: Amex Membership Rewards (UK)
     moeda: GBP
+    site: "https://www.americanexpress.com/en-gb/"
     parceiros:
       british: {proporcao: 1, minimo: 0}
       iberia: {proporcao: 1, minimo: 0}
@@ -182,6 +192,7 @@ pontos:
   amex_mr_au:  # ratios can vary by card tier; Qantas 2:1 only for Ascent Premium; Emirates suspended
     nome: Amex Membership Rewards (Australia)
     moeda: AUD
+    site: "https://www.americanexpress.com/en-au/"
     parceiros:
       velocity: {proporcao: 2, minimo: 0}
       british: {proporcao: 2, minimo: 0}

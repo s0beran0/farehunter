@@ -11,7 +11,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 FONTES_CONHECIDAS = {
@@ -56,6 +56,24 @@ class Perna:
             escalas_min=[int(x) for x in (d.get("escalas_min") or [])],
         )
 
+    def partida_dt(self) -> datetime | None:
+        """Local departure time at the origin airport."""
+        if not self.partida:
+            return None
+        return datetime.fromisoformat(f"{self.data}T{self.partida}")
+
+    def chegada_dt(self) -> datetime | None:
+        """Local arrival time at the destination airport. The day is inferred from the flight duration
+        (pick the day offset that best matches departure + duration, which tolerates up to ±12h of time zone)."""
+        saida = self.partida_dt()
+        if saida is None or not self.chegada:
+            return None
+        base = datetime.fromisoformat(f"{self.data}T{self.chegada}")
+        if self.duracao_min is None:
+            return base if base >= saida else base + timedelta(days=1)
+        alvo = saida + timedelta(minutes=self.duracao_min)
+        return min((base + timedelta(days=d) for d in range(0, 3)), key=lambda x: abs((x - alvo).total_seconds()))
+
 
 @dataclass
 class Opcao:
@@ -70,6 +88,7 @@ class Opcao:
     bagagem_inclusa: bool = False
     assentos_disponiveis: int | None = None
     confirmado_ao_vivo: bool = False
+    taxas_confirmadas: bool = False  # awards: taxes read on the program's site (Smiles only shows them at checkout)
     link: str | None = None
     coletado_em: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"))
     id: str = ""
@@ -135,6 +154,14 @@ class Opcao:
     def conexoes_total(self) -> int:
         return sum(p.conexoes for p in self.pernas)
 
+    @property
+    def validada(self) -> bool:
+        """Can this option back a recommendation? Cash: a specific flight fetched in this run (calendar/grid
+        prices have no flight and are only hints). Miles: confirmed live on the program's site (Seats.aero is a cache)."""
+        if self.tipo == "dinheiro":
+            return all(p.voos for p in self.pernas)
+        return self.confirmado_ao_vivo
+
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
@@ -152,6 +179,7 @@ class Opcao:
             bagagem_inclusa=bool(d.get("bagagem_inclusa", False)),
             assentos_disponiveis=d.get("assentos_disponiveis"),
             confirmado_ao_vivo=bool(d.get("confirmado_ao_vivo", False)),
+            taxas_confirmadas=bool(d.get("taxas_confirmadas", False)),
             link=d.get("link"),
             coletado_em=d.get("coletado_em") or datetime.now(timezone.utc).isoformat(timespec="seconds"),
             id=d.get("id", ""),

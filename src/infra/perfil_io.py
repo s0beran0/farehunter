@@ -34,6 +34,7 @@ PADRAO: dict[str, Any] = {
     "pontos_programas": [],
     "valor_minimo_economia": 50,
     "conexao_curta_min": 60,
+    "conexao_bilhetes_separados_min": 180,
     "limites": {"seats_aero_chamadas_dia": 1000, "seats_aero_mcp_chamadas_dia": 300, "playwright_paginas_por_execucao": 15},
 }
 # Keys renamed when the engine became currency-neutral (old profiles keep working).
@@ -136,6 +137,7 @@ def validar(d: dict) -> dict:
     d["pontos_programas"] = pontos
     d["valor_minimo_economia"] = float(d["valor_minimo_economia"])
     d["conexao_curta_min"] = _inteiro(d["conexao_curta_min"], "conexao_curta_min")
+    d["conexao_bilhetes_separados_min"] = _inteiro(d["conexao_bilhetes_separados_min"], "conexao_bilhetes_separados_min", 60)
     perfil_de_dict(d)  # make sure the engine can load it
     return d
 
@@ -189,6 +191,7 @@ pontos_programas: {_dump(d["pontos_programas"])}
 
 valor_minimo_economia: {d["valor_minimo_economia"]:g}   # below this saving, effortful strategies go to "also possible"
 conexao_curta_min: {d["conexao_curta_min"]}         # connections shorter than this are flagged as a risk
+conexao_bilhetes_separados_min: {d["conexao_bilhetes_separados_min"]}   # minimum time between two separate tickets (re-check bags, delays)
 
 limites:
 {limites}

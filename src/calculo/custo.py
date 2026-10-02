@@ -41,6 +41,7 @@ class Transferido:
     milhas: int
     bonus_pct: float
     custo: float
+    ate: str = ""  # bonus end date, when known
 
 
 @dataclass
@@ -142,7 +143,7 @@ def financiar_milhas(
             milhas_obtidas = min(restante, math.floor(usar * milhas_por_ponto + 1e-9))
             custo = usar / 1000 * milheiro.pontos[tr.origem].cpm_uso_efetivo
             pontos[tr.origem] -= usar
-            fin.transferencias.append(Transferido(tr.origem, usar, milhas_obtidas, bonus, custo))
+            fin.transferencias.append(Transferido(tr.origem, usar, milhas_obtidas, bonus, custo, ate=tr.ate))
             restante -= milhas_obtidas
 
     if restante > 0:
@@ -172,14 +173,30 @@ class CustoCombinacao:
 
     @property
     def data_ida(self) -> str:
-        return self.opcoes[0].pernas[0].data
+        """Date of the main outbound flight (a positioning flight may leave the day before)."""
+        idas = [o for o in self.opcoes if o.trecho in ("ida", "ida_volta")]
+        return (idas[-1] if idas else self.opcoes[0]).pernas[0].data
 
     @property
     def data_volta(self) -> str | None:
+        voltas = [o for o in self.opcoes if o.trecho == "volta"]
+        if voltas:
+            return voltas[0].pernas[0].data
         ultima = self.opcoes[-1]
-        if ultima.trecho == "ida_volta" or ultima.trecho == "volta":
-            return ultima.pernas[-1].data
-        return None
+        return ultima.pernas[-1].data if ultima.trecho == "ida_volta" else None
+
+    def hubs(self) -> list[str]:
+        """Airports where the traveller changes tickets."""
+        out = []
+        for grupo in self.bilhetes_por_direcao().values():
+            out += [a.pernas[-1].destino for a in grupo[:-1]]
+        return list(dict.fromkeys(out))
+
+    def bilhetes_por_direcao(self) -> dict[str, list[Opcao]]:
+        out: dict[str, list[Opcao]] = {}
+        for o in self.opcoes:
+            out.setdefault("volta" if o.trecho == "volta" else "ida", []).append(o)
+        return out
 
     @property
     def duracao_total_min(self) -> int:
@@ -191,7 +208,7 @@ class CustoCombinacao:
 
     @property
     def trabalhosa(self) -> bool:
-        return bool(self.estrategias & {"comprar_milhas", "transferir_pontos", "aeroporto_alternativo"})
+        return bool(self.estrategias & {"comprar_milhas", "transferir_pontos", "aeroporto_alternativo", "bilhetes_separados"})
 
     @property
     def cias(self) -> list[str]:
@@ -218,6 +235,8 @@ class CustoCombinacao:
             extras.append(t("extra.transferir"))
         if "aeroporto_alternativo" in self.estrategias:
             extras.append(t("extra.aeroporto"))
+        if "bilhetes_separados" in self.estrategias:
+            extras.append(t("extra.bilhetes_separados", hubs="/".join(self.hubs())))
         return texto + (f" ({', '.join(extras)})" if extras else "")
 
 
@@ -273,6 +292,17 @@ def custo_combinacao(
         cias_por_bilhete = [o.cias for o in opcoes]
         if len({frozenset(c) for c in cias_por_bilhete}) > 1:
             res.riscos.append(t("risco.bilhetes_separados"))
+    # Separate tickets within one direction (positioning flight + main flight through a hub).
+    por_direcao: dict[str, list[Opcao]] = {}
+    for o in opcoes:
+        por_direcao.setdefault("volta" if o.trecho == "volta" else "ida", []).append(o)
+    for grupo in por_direcao.values():
+        for a, b in zip(grupo, grupo[1:]):
+            chegada, saida = a.pernas[-1].chegada_dt(), b.pernas[0].partida_dt()
+            if chegada and saida:
+                res.estrategias.add("bilhetes_separados")
+                horas = round((saida - chegada).total_seconds() / 3600, 1)
+                res.riscos.append(t("risco.conexao_bilhetes", hub=a.pernas[-1].destino, horas=horas))
 
     res.riscos = list(dict.fromkeys(res.riscos))
     res.custo = round(
