@@ -1,4 +1,4 @@
-"""Diretório de uma execução: data/runs/<id>/{pedido.json, status.json, opcoes/<fonte>.json, bruto/}."""
+"""A search run directory: runs/<id>/{pedido.json, status.json, opcoes/<fonte>.json, bruto/}."""
 
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ def _gravar_status(run: Path, fonte: str, ok: bool, motivo: str = "", n: int = 0
 
 
 def registrar_opcoes(run: Path, fonte: str, opcoes: list[Opcao], aviso: str = "") -> int:
-    """Acrescenta opções (sem duplicar por id) e marca a fonte como OK. Retorna quantas eram novas."""
+    """Append options (deduplicated by id) and mark the source as OK. Returns how many were new."""
     destino = run / "opcoes" / f"{fonte}.json"
     destino.parent.mkdir(parents=True, exist_ok=True)
     existentes = json.loads(destino.read_text(encoding="utf-8")) if destino.exists() else []
@@ -42,7 +42,7 @@ def registrar_opcoes(run: Path, fonte: str, opcoes: list[Opcao], aviso: str = ""
 
 
 def registrar_falha(run: Path, fonte: str, motivo: str) -> None:
-    """Falha total se a fonte ainda não trouxe nada nesta execução; senão vira aviso de falha parcial."""
+    """Full failure if the source has returned nothing in this run yet; otherwise it becomes a partial-failure warning."""
     st = status(run).get(fonte)
     if st and st.get("ok") and st.get("opcoes"):
         motivo_total = "; ".join(x for x in [st.get("motivo", ""), f"parcial: {motivo}"] if x)
@@ -64,13 +64,13 @@ def buscar_opcao(run: Path, opcao_id: str) -> tuple[Path, dict] | None:
 
 
 def confirmar(run: Path, opcao_id: str, fonte_confirmacao: str, milhas: int | None = None,
-              taxas_brl: float | None = None, preco_brl: float | None = None, indisponivel: bool = False,
+              taxas: float | None = None, preco: float | None = None, indisponivel: bool = False,
               link: str | None = None, obs: str | None = None) -> dict:
-    """Resultado da confirmação ao vivo (Playwright) de uma opção vinda de cache.
-    Indisponível → a opção sai da execução. Disponível → valores atualizados e `confirmado_ao_vivo=True`."""
+    """Result of the live (Playwright) confirmation of a cached option.
+    Unavailable → the option is removed from the run. Available → values updated and `confirmado_ao_vivo=True`."""
     achado = buscar_opcao(run, opcao_id)
     if achado is None:
-        raise KeyError(f"opção {opcao_id} não encontrada em {run}")
+        raise KeyError(f"option {opcao_id} not found in {run}")
     arq, _ = achado
     dados = json.loads(arq.read_text(encoding="utf-8"))
     novos, resultado = [], {}
@@ -83,10 +83,10 @@ def confirmar(run: Path, opcao_id: str, fonte_confirmacao: str, milhas: int | No
             continue
         if milhas is not None:
             o["milhas"] = milhas
-        if taxas_brl is not None:
-            o["taxas_brl"] = taxas_brl
-        if preco_brl is not None:
-            o["preco_brl"] = preco_brl
+        if taxas is not None:
+            o["taxas"] = taxas
+        if preco is not None:
+            o["preco"] = preco
         if link:
             o["link"] = link
         o["confirmado_ao_vivo"] = True
@@ -102,7 +102,7 @@ def confirmar(run: Path, opcao_id: str, fonte_confirmacao: str, milhas: int | No
 
 
 def gravar_saldos(run: Path, saldos: dict[str, int]) -> dict:
-    """Saldos valem só para esta execução (o perfil não guarda saldo: é dado volátil)."""
+    """Balances only apply to this run (the profile never stores balances: they are volatile)."""
     registro = {"informados_em": datetime.now().isoformat(timespec="minutes"), "saldos": saldos}
     (run / "saldos.json").write_text(json.dumps(registro, indent=2), encoding="utf-8")
     return registro
@@ -114,15 +114,16 @@ def ler_saldos(run: Path) -> dict | None:
 
 
 def aplicar_saldos(perfil, registro: dict | None) -> str | None:
-    """Injeta no Perfil os saldos da execução. Retorna um aviso se não houver saldos informados."""
+    """Inject the run's balances into the Perfil. Returns a warning when no balances were given."""
     from infra.config import SaldoPrograma
+    from infra.programas import carregar
 
     if registro is None:
         from i18n import t
 
         return t("aviso.saldos_nao_informados")
     for nome, valor in registro["saldos"].items():
-        if nome in ("smiles", "latam_pass", "azul"):
+        if carregar().eh_milhas(nome):
             perfil.programas.setdefault(nome, SaldoPrograma()).saldo = valor
         else:
             perfil.pontos_transferiveis[nome] = valor

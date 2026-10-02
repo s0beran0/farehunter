@@ -1,6 +1,6 @@
 ---
 name: miles
-description: Update the miles-value table (CPM — cost per 1,000 miles/points for Smiles, LATAM Pass, Azul, Livelo, Esfera) with current buy-miles promotions and transfer bonuses; shows the diff and only saves after the user confirms. Use when the user asks about miles value, "valor do milheiro", promotions, transfer bonuses, or when a search warns the table is stale.
+description: Update the miles-value table (CPM — value and purchase cost per 1,000 miles/points for any program: Smiles, United, Aeroplan, Flying Blue, Avios, Livelo, Amex MR, Chase UR…) with current buy-miles promotions and transfer bonuses; shows the diff and only saves after the user confirms. Use when the user asks about miles value, "valor do milheiro", promotions, transfer bonuses, or when a search warns the table is stale.
 ---
 
 > If any `uv` command fails with "command not found" (or `uv` is not recognized), stop and follow the `/farehunter:setup` skill.

@@ -1,4 +1,4 @@
-"""Cache local em arquivo por (fonte, chave) com TTL (SPEC §8)."""
+"""Local file cache per (source, key) with TTL (SPEC §8)."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from infra.config import DADOS
 
 CACHE_DIR = DADOS / "cache"
 
-# TTL padrão em horas por fonte. Dinheiro muda rápido; disponibilidade de milhas em cache, menos.
+# Default TTL in hours per source. Cash prices change fast; cached award availability, less so.
 TTL_HORAS = {
     "kiwi": 2,
     "google_flights": 2,

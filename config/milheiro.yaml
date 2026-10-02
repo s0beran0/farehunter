@@ -1,40 +1,74 @@
-# CPM = custo em BRL por 1.000 milhas/pontos.
-# atualizado_em é obrigatório. Com mais de 15 dias, o agente avisa e sugere /atualizar-milheiro.
+# Miles-value table. CPM = value per 1,000 miles/points, in `moeda` (default: the program's currency in
+# config/programas.yaml). Every search converts these values into the search currency automatically.
+# atualizado_em is required. When older than 15 days, the agent warns and suggests /farehunter:miles.
 #
-# cpm_compra_atual: quanto custa COMPRAR milhas hoje (promoção vigente ou preço cheio).
-# cpm_valor_uso:    quanto vale 1.000 milhas que você JÁ TEM (custo de oportunidade). Sem valor, usa cpm_compra_atual.
-# compra_minima / compra_passo: lote mínimo e múltiplo de compra no programa.
+# cpm_compra_atual: what BUYING miles costs today (current promotion or full price). Empty = can't buy / unknown.
+# cpm_valor_uso:    what 1,000 miles you ALREADY HAVE are worth (opportunity cost). If empty, cpm_compra_atual is used.
+# compra_minima / compra_passo: minimum purchase and purchase step in the program.
 #
-# Valores iniciais da pesquisa de 2026-10-02 (docs/research.md §6). Fontes:
-#   MD    = melhoresdestinos.com.br/milhas/valor-milheiro-azul-latam-smiles-2026 (valor-alvo, 30/07/26)
-#   MBot  = milhasbot.com.br/valores-do-milheiro/ (uso e teto de compra, 02/10/26)
-#   PdP   = passageirodeprimeira.com (promoções)
+# Initial values from the 2026-10-02 research (docs/research.md §6 for Brazil, §10 international). Sources:
+#   MD    = melhoresdestinos.com.br/milhas/valor-milheiro-azul-latam-smiles-2026 (target value, 2026-07-30)
+#   MBot  = milhasbot.com.br/valores-do-milheiro/ (use value and buy ceiling, 2026-10-02)
+#   PdP   = passageirodeprimeira.com (promotions)
+#   VAL   = median of TPG (2026-10-01), Upgraded Points (2026-09-17), Frequent Miler (2026-09-02), NerdWallet (2026-10-02)
+#   UPT   = upgradedpoints.com/news/current-point-purchase-promotions/ (2026-10-01)
+#   GATE  = thegatewithbriancohen.com/miles-and-points-on-sale-october-2-2026/ (2026-10-02)
+#   OMAAT = onemileatatime.com/deals/... ; AW = awardwallet.com/... (dates per line)
+# International buy prices are the typical recurring promotional price (promotions come back every few weeks);
+# the line says when a promotion has a fixed end date.
 
-smiles:
-  cpm_compra_atual: 16.50   # sem promo ativa em 02/10; 16,50 é o teto "bom" recorrente (380% bônus Clube saiu a 16,67 até 20/09)
-  cpm_valor_uso: 22.0       # MBot, valor de uso médio
-  compra_minima: 1000
-  compra_passo: 1000
-  fonte: "MD alvo 16 (30/07); MBot teto 14–16,50 e uso 22 (02/10); sem promoção de compra ativa em 02/10"
-  atualizado_em: "2026-10-02"
+programas:
+  # --- Brazil (BRL) ---
+  smiles:
+    cpm_compra_atual: 16.50   # no active promo on 2026-10-02; 16.50 is the recurring "good" ceiling (380% Club bonus came to 16.67 until 09-20)
+    cpm_valor_uso: 22.0       # MBot, average use value
+    compra_minima: 1000
+    compra_passo: 1000
+    fonte: "MD alvo 16 (30/07); MBot teto 14–16,50 e uso 22 (02/10); sem promoção de compra ativa em 02/10"
+    atualizado_em: "2026-10-02"
+  latam_pass:
+    cpm_compra_atual: 24.50   # purchase at 65% off, valid until 2026-10-02 (PdP 09-29)
+    cpm_valor_uso: 28.0
+    compra_minima: 1000
+    compra_passo: 1000
+    fonte: "PdP 29/09 (65% OFF até 02/10); MD alvo 26; MBot uso 28"
+    atualizado_em: "2026-10-02"
+  azul:
+    cpm_compra_atual: 21.0    # direct purchase at 70% off; via a bonus transfer it comes to ~R$ 10–13 (see transferencias)
+    cpm_valor_uso: 17.0
+    compra_minima: 1000
+    compra_passo: 1000
+    fonte: "MD alvo 13 (via clube/transferência); compra direta 70% OFF ~R$ 21; MBot uso 17 (02/10)"
+    atualizado_em: "2026-10-02"
 
-latam_pass:
-  cpm_compra_atual: 24.50   # compra com 65% OFF, válida até 02/10/26 (PdP 29/09)
-  cpm_valor_uso: 28.0
-  compra_minima: 1000
-  compra_passo: 1000
-  fonte: "PdP 29/09 (65% OFF até 02/10); MD alvo 26; MBot uso 28"
-  atualizado_em: "2026-10-02"
+  # --- International (USD per 1,000) ---
+  united:         {cpm_compra_atual: 18.8, cpm_valor_uso: 12.0,  moeda: USD, fonte: "VAL 1.2¢; buy 100% bonus = 1.88¢ (OMAAT 2026-07-15)", atualizado_em: "2026-10-02"}
+  american:       {cpm_compra_atual: 22.6, cpm_valor_uso: 14.25, moeda: USD, fonte: "VAL 1.425¢; buy 40% off = 2.26¢ until 2026-10-31 (UPT, GATE)", atualizado_em: "2026-10-02"}
+  delta:          {cpm_compra_atual: 25.1, cpm_valor_uso: 12.0,  moeda: USD, fonte: "VAL 1.2¢; buy 50% bonus = 2.51¢ (AW, date uncertain)", atualizado_em: "2026-10-02"}
+  alaska:         {cpm_compra_atual: 15.9, cpm_valor_uso: 15.25, moeda: USD, fonte: "VAL 1.525¢; buy 120% bonus = 1.59¢ until 2026-10-19 (GATE)", atualizado_em: "2026-10-02"}
+  aeroplan:       {cpm_compra_atual: 18.5, cpm_valor_uso: 14.5,  moeda: USD, fonte: "VAL 1.45¢; buy 30% off ≈ 1.85 USD¢ until 2026-10-13 (UPT); past 100% bonus = 1.35¢", atualizado_em: "2026-10-02"}
+  aeromexico:     {cpm_compra_atual: null, cpm_valor_uso: 8.0,   moeda: USD, fonte: "TPG 0.8¢ (single source); no published buy price", atualizado_em: "2026-10-02"}
+  lifemiles:      {cpm_compra_atual: 13.5, cpm_valor_uso: 13.5,  moeda: USD, fonte: "VAL 1.35¢; buy 145% bonus = 1.35¢ (OMAAT 2026-07-16; best in 2026: 1.27¢)", atualizado_em: "2026-10-02"}
+  copa:           {cpm_compra_atual: 28.9, cpm_valor_uso: null,  moeda: USD, fonte: "no valuation; base buy 2.89¢ (AW Aug 2026); 80% bonus promo ended 2026-10-02", atualizado_em: "2026-10-02"}
+  flyingblue:     {cpm_compra_atual: 16.9, cpm_valor_uso: 13.0,  moeda: USD, fonte: "VAL 1.3¢; buy 80% bonus = 1.69¢ (OMAAT 2026-08-27)", atualizado_em: "2026-10-02"}
+  british:        {cpm_compra_atual: 16.4, cpm_valor_uso: 12.25, moeda: USD, fonte: "VAL 1.225¢; buy 40% bonus = 1.64¢, USD account (OMAAT 2026-07-10)", atualizado_em: "2026-10-02"}
+  iberia:         {cpm_compra_atual: 15.4, cpm_valor_uso: 13.25, moeda: USD, fonte: "VAL 1.325¢; buy 50% bonus = 1.54¢ (AW, promo from Aug 2025, uncertain)", atualizado_em: "2026-10-02"}
+  qatar:          {cpm_compra_atual: 15.3, cpm_valor_uso: 13.25, moeda: USD, fonte: "VAL 1.325¢; buy 50% bonus = 1.53¢ (AW 2026-08-26)", atualizado_em: "2026-10-02"}
+  virginatlantic: {cpm_compra_atual: 14.7, cpm_valor_uso: 14.5,  moeda: USD, fonte: "VAL 1.45¢; buy 70% bonus = 1.47¢ until 2026-10-04 (UPT, GATE)", atualizado_em: "2026-10-02"}
+  lufthansa:      {cpm_compra_atual: 14.0, cpm_valor_uso: 13.0,  moeda: USD, fonte: "VAL 1.3¢; buy 50% bonus on bundles = 1.40¢ until 2026-10-31 (UPT, GATE)", atualizado_em: "2026-10-02"}
+  eurobonus:      {cpm_compra_atual: null, cpm_valor_uso: null,  moeda: USD, fonte: "no published valuation or buy price", atualizado_em: "2026-10-02"}
+  finnair:        {cpm_compra_atual: 14.5, cpm_valor_uso: 14.0,  moeda: USD, fonte: "TPG 1.4¢ (Avios, single source); buy 50% bonus = 1.45¢ until 2026-10-05 (UPT)", atualizado_em: "2026-10-02"}
+  turkish:        {cpm_compra_atual: 30.0, cpm_valor_uso: 11.0,  moeda: USD, fonte: "VAL 1.1¢; base buy ~3.0¢ (the 100% bonus = 1.5¢ needs 250k+ miles, until 2026-10-15; UPT)", atualizado_em: "2026-10-02"}
+  emirates:       {cpm_compra_atual: null, cpm_valor_uso: 11.0,  moeda: USD, fonte: "VAL 1.1¢; no published buy price", atualizado_em: "2026-10-02"}
+  etihad:         {cpm_compra_atual: 25.6, cpm_valor_uso: 13.0,  moeda: USD, fonte: "VAL 1.3¢; buy 25% bonus = 2.56¢ (AW 2026-07-16)", atualizado_em: "2026-10-02"}
+  singapore:      {cpm_compra_atual: null, cpm_valor_uso: 13.25, moeda: USD, fonte: "VAL 1.325¢; miles not sold", atualizado_em: "2026-10-02"}
+  asiamiles:      {cpm_compra_atual: null, cpm_valor_uso: 13.0,  moeda: USD, fonte: "VAL 1.3¢; no published buy price", atualizado_em: "2026-10-02"}
+  jal:            {cpm_compra_atual: null, cpm_valor_uso: 13.0,  moeda: USD, fonte: "UP 1.3¢ (single source); miles not sold", atualizado_em: "2026-10-02"}
+  eva:            {cpm_compra_atual: 24.0, cpm_valor_uso: null,  moeda: USD, fonte: "no valuation; buy 40% off = 2.4¢ until 2026-10-08 (UPT, GATE)", atualizado_em: "2026-10-02"}
+  qantas:         {cpm_compra_atual: 12.35, cpm_valor_uso: 12.75, moeda: USD, fonte: "VAL 1.275¢; buy 50% bonus = 1.78 AUD¢ ≈ 1.235 USD¢ (Point Hacks 2026-06-24)", atualizado_em: "2026-10-02"}
+  velocity:       {cpm_compra_atual: 9.7,  cpm_valor_uso: null,  moeda: USD, fonte: "no valuation; buy 40% off = 1.4 AUD¢ ≈ 0.97 USD¢, recurs ~every 2 months (Point Hacks 2026-09-24)", atualizado_em: "2026-10-02"}
 
-azul:
-  cpm_compra_atual: 21.0    # compra direta com 70% OFF; via transferência com bônus sai ~R$ 10–13 (ver transferencias)
-  cpm_valor_uso: 17.0
-  compra_minima: 1000
-  compra_passo: 1000
-  fonte: "MD alvo 13 (via clube/transferência); compra direta 70% OFF ~R$ 21; MBot uso 17 (02/10)"
-  atualizado_em: "2026-10-02"
-
-# CPM dos pontos de cartão (origem das transferências).
+# CPM of transferable points (source of transfers). Card points usually can't be bought: cpm_compra_atual empty.
 pontos:
   livelo:
     cpm_compra_atual: 30.0
@@ -46,14 +80,17 @@ pontos:
     cpm_valor_uso: 22.0
     fonte: "compras 2026 a R$ 31,50–33,60 (PdP); MBot uso 22 (02/10)"
     atualizado_em: "2026-10-02"
+  amex_mr:    {cpm_valor_uso: 20.0, moeda: USD, fonte: "VAL (TPG 2.0, UP 2.2, FM 1.5)", atualizado_em: "2026-10-02"}
+  chase_ur:   {cpm_valor_uso: 20.0, moeda: USD, fonte: "VAL (TPG 2.05, UP 2.0, FM 1.5)", atualizado_em: "2026-10-02"}
+  citi_ty:    {cpm_valor_uso: 16.0, moeda: USD, fonte: "VAL (TPG 1.9, UP 1.6, FM 1.5)", atualizado_em: "2026-10-02"}
+  capitalone: {cpm_valor_uso: 18.0, moeda: USD, fonte: "VAL (TPG 1.85, UP 1.8, FM 1.45)", atualizado_em: "2026-10-02"}
+  bilt:       {cpm_valor_uso: 20.0, moeda: USD, fonte: "VAL (TPG 2.2, UP 2.0, FM 1.55)", atualizado_em: "2026-10-02"}
+  wellsfargo: {cpm_valor_uso: 15.0, moeda: USD, fonte: "VAL (TPG 1.75, UP 1.5, FM 1.4)", atualizado_em: "2026-10-02"}
+  # inter_loop, atomos, amex_mr_ca/uk/au: no published valuation yet. Set cpm_valor_uso here (in their currency)
+  # or via /farehunter:miles; until then transfers from them are skipped with a warning.
 
-# Bônus de transferência vigentes. Chave: <origem>_<destino>. ate vazio = sem validade definida.
-# proporcao = pontos de origem por milha antes do bônus (1 = 1:1).
-# minimo = mínimo de pontos por transferência (blogs, set/2026 — docs/research.md §5.6).
+# Current transfer bonuses. Key: <source>_<destination>. Empty `ate` = no end date.
+# Ratio and minimum come from config/programas.yaml; set proporcao/minimo here only to override them.
 transferencias:
-  livelo_smiles:     { bonus_pct: 0, ate: "", proporcao: 1, minimo: 10000 }  # último: 70% até 30/09/26
-  esfera_smiles:     { bonus_pct: 0, ate: "", proporcao: 1, minimo: 30000 }
-  livelo_latam_pass: { bonus_pct: 0, ate: "", proporcao: 1, minimo: 12000 }
-  esfera_latam_pass: { bonus_pct: 0, ate: "", proporcao: 1, minimo: 30000 }
-  livelo_azul:       { bonus_pct: 0, ate: "", proporcao: 1, minimo: 1000 }   # último: até 110% até 27/09/26
-  esfera_azul:       { bonus_pct: 0, ate: "", proporcao: 1, minimo: 30000 }
+  livelo_smiles:     { bonus_pct: 0, ate: "" }  # last one: 70% until 2026-09-30
+  livelo_azul:       { bonus_pct: 0, ate: "" }  # last one: up to 110% until 2026-09-27

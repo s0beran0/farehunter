@@ -8,7 +8,7 @@ def test_salvar_mescla_valida_e_regrava(tmp_path):
     arq = tmp_path / "perfil.yaml"
     _, antigo = perfil_io.salvar({
         "aeroportos_origem": ["poa"],
-        "aeroportos_alternativos_origem": [{"iata": "cxj", "custo_deslocamento_brl": 90, "observacao": "2h de carro"}],
+        "aeroportos_alternativos_origem": [{"iata": "cxj", "custo_deslocamento": 90, "observacao": "2h de carro"}],
         "passageiros_padrao": 2,
         "programas": {"smiles": {"tem_conta": True, "clube": True, "categoria": "Prata"}},
         "pontos_programas": ["Livelo", "Inter Loop"],
@@ -16,15 +16,16 @@ def test_salvar_mescla_valida_e_regrava(tmp_path):
     assert antigo == ""
     p = carregar_perfil(arq)
     assert p.aeroportos_origem == ["POA"]
-    assert p.aeroportos_alternativos_origem[0].iata == "CXJ" and p.aeroportos_alternativos_origem[0].custo_deslocamento_brl == 90
-    assert p.programas["smiles"].clube and p.programas["smiles"].saldo == 0  # saldo nunca vem do arquivo
+    assert p.aeroportos_alternativos_origem[0].iata == "CXJ" and p.aeroportos_alternativos_origem[0].custo_deslocamento == 90
+    assert p.programas["smiles"].clube and p.programas["smiles"].saldo == 0  # a balance never comes from the file
     bruto = perfil_io.carregar_bruto(arq)
     assert bruto["pontos_programas"] == ["livelo", "inter_loop"]
-    assert bruto["programas"]["smiles"]["tem_conta"] and not bruto["programas"]["azul"]["tem_conta"]
+    assert bruto["programas"]["smiles"]["tem_conta"] and "azul" not in bruto["programas"]
     assert perfil_io.faltando(bruto) == []
-    assert "saldo" not in arq.read_text().split("SALDOS NÃO FICAM AQUI")[1]
+    corpo = "\n".join(l for l in arq.read_text().splitlines() if not l.lstrip().startswith("#"))
+    assert "saldo" not in corpo  # no balance field is ever written
 
-    perfil_io.salvar({"programas": {"azul": {"tem_conta": True}}}, arq)  # atualização parcial
+    perfil_io.salvar({"programas": {"azul": {"tem_conta": True}}}, arq)  # partial update
     bruto = perfil_io.carregar_bruto(arq)
     assert bruto["programas"]["azul"]["tem_conta"] and bruto["programas"]["smiles"]["categoria"] == "Prata"
 
@@ -33,9 +34,9 @@ def test_validacao_recusa_valores_ruins_e_saldo(tmp_path):
     arq = tmp_path / "perfil.yaml"
     with pytest.raises(perfil_io.PerfilInvalido, match="IATA"):
         perfil_io.salvar({"aeroportos_origem": ["Porto Alegre"]}, arq)
-    with pytest.raises(perfil_io.PerfilInvalido, match="não ficam no perfil"):
+    with pytest.raises(perfil_io.PerfilInvalido, match="not stored in the profile"):
         perfil_io.salvar({"programas": {"smiles": {"saldo": 45000}}}, arq)
-    with pytest.raises(perfil_io.PerfilInvalido, match="desconhecido"):
+    with pytest.raises(perfil_io.PerfilInvalido, match="unknown"):
         perfil_io.salvar({"programas": {"tap": {"tem_conta": True}}}, arq)
     assert not arq.exists()
 
@@ -54,3 +55,17 @@ def test_saldos_valem_so_para_a_execucao(tmp_path):
     assert runs.aplicar_saldos(perfil, reg) is None
     assert perfil.programas["smiles"].saldo == 45000 and perfil.pontos_transferiveis["livelo"] == 12000
     assert reg["informados_em"]
+
+
+def test_international_profile_currency_country_and_programs(tmp_path):
+    arq = tmp_path / "perfil.yaml"
+    novo, _ = perfil_io.salvar({
+        "moeda": "usd", "pais": "us", "aeroportos_origem": ["JFK"],
+        "programas": {"united": {"tem_conta": True}}, "pontos_programas": [],
+    }, arq)
+    assert (novo["moeda"], novo["pais"]) == ("USD", "US")
+    assert novo["custo_bagagem_trecho"] == {}  # Brazilian BRL bag prices dropped outside BRL
+    with pytest.raises(perfil_io.PerfilInvalido, match="Did you mean: united"):
+        perfil_io.salvar({"programas": {"unitd": {"tem_conta": True}}}, arq)
+    with pytest.raises(perfil_io.PerfilInvalido, match="ISO 4217"):
+        perfil_io.salvar({"moeda": "dollar"}, arq)

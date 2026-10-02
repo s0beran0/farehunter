@@ -1,8 +1,8 @@
-"""Kiwi.com MCP (https://mcp.kiwi.com), chamado direto por JSON-RPC sobre HTTP.
+"""Kiwi.com MCP (https://mcp.kiwi.com), called directly via JSON-RPC over HTTP.
 
-O servidor também está no .mcp.json para uso interativo. Para o fluxo do agente, chamar daqui é mais barato:
-a resposta (~20 KB por busca) vai direto para o normalizador, sem passar pelo contexto do modelo.
-Validado em 2026-10-02: tool `search-flight`, datas dd/mm/yyyy, `currency=BRL`, sem sessão (docs/research.md).
+The server is also in .mcp.json for interactive use. For the agent flow, calling it from here is cheaper:
+the response (~20 KB per search) goes straight to the normalizer without passing through the model's context.
+Validated 2026-10-02: tool `search-flight`, dates dd/mm/yyyy, any `currency`, no session needed (docs/research.md).
 """
 
 from __future__ import annotations
@@ -37,16 +37,16 @@ def chamar_search_flight(argumentos: dict, http: httpx.Client | None = None) -> 
 def buscar(
     origem: str, destino: str, ida: str, volta: str | None = None, passageiros: int = 1, flex_dias: int = 0,
     cabine: str = "economy", bagagem_despachada: bool = False, cache: Cache | None = None,
-    http: httpx.Client | None = None,
+    http: httpx.Client | None = None, moeda: str = "BRL", idioma: str = "en",
 ) -> list[Opcao]:
     cache = cache or Cache()
-    chave = chave_busca(origem, destino, ida, volta, passageiros, flex_dias, cabine, bagagem_despachada)
+    chave = chave_busca(origem, destino, ida, volta, passageiros, flex_dias, cabine, bagagem_despachada, moeda)
     if (hit := cache.get(FONTE, chave)) is not None:
         return normalizar(hit, passageiros)
 
     args = {
         "flyFrom": origem, "flyTo": destino, "departureDate": _dmy(ida),
-        "adults": passageiros, "cabinClass": CABINES[cabine], "currency": "BRL", "locale": "pt",
+        "adults": passageiros, "cabinClass": CABINES[cabine], "currency": moeda.upper(), "locale": idioma,
     }
     if flex_dias:
         args["departureDateFlexDays"] = flex_dias
@@ -86,7 +86,7 @@ def _perna(trecho: dict) -> Perna:
 
 
 def normalizar(bruto: dict, passageiros: int | None = None) -> list[Opcao]:
-    """Converte a resposta do `search-flight` (preço total da busca) em opções com preço por passageiro."""
+    """Convert the `search-flight` response (total price for the search) into options with per-passenger prices."""
     pax = passageiros or sum((bruto.get("passengers") or {}).get(k, 0) for k in ("adults", "children")) or 1
     opcoes = []
     for it in bruto.get("itineraries") or []:
@@ -99,7 +99,7 @@ def normalizar(bruto: dict, passageiros: int | None = None) -> list[Opcao]:
             obs.append("Kiwi combina cias diferentes (pode ser bilhete separado / self-transfer)")
         opcoes.append(Opcao(
             fonte=FONTE, tipo="dinheiro", trecho="ida_volta" if len(pernas) == 2 else "ida", pernas=pernas,
-            preco_brl=round(float(it["price"]) / pax, 2),
+            preco=round(float(it["price"]) / pax, 2),
             bagagem_inclusa=bool((it.get("baggage") or {}).get("checkedBag")),
             link=it.get("bookingUrl"), observacoes=obs,
         ))

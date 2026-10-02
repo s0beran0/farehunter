@@ -1,5 +1,5 @@
-"""Deep links para o usuário emitir/comprar manualmente. Formatos verificados em navegador em 2026-10-02
-(docs/research.md §5.1). Se um site mudar, ajuste só aqui."""
+"""Deep links for the user to book/buy manually. Formats verified in a browser on 2026-10-02
+(docs/research.md §5.1). If a site changes, fix it only here."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ def _epoch_ms_meio_dia(iso: str) -> int:
 
 
 def smiles(origem: str, destino: str, ida: str, volta: str | None = None, adultos: int = 1) -> str:
-    """Busca de emissão Smiles. Mostra preço em milhas sem login (Clube/Diamante e normal)."""
+    """Smiles award search. Shows miles prices without login (Club/Diamond and regular)."""
     params = {
         "adults": adultos, "children": 0, "infants": 0, "cabin": "ALL",
         "tripType": 1 if volta else 2, "searchType": "both", "segments": 1, "isElegible": "false",
@@ -26,7 +26,7 @@ def smiles(origem: str, destino: str, ida: str, volta: str | None = None, adulto
 
 def latam(origem: str, destino: str, ida: str, volta: str | None = None, adultos: int = 1,
           milhas: bool = True) -> str:
-    """Busca LATAM. Com milhas (`redemption=true`) o site exige login."""
+    """LATAM search. With miles (`redemption=true`) the site requires login."""
     params = {
         "origin": origem, "destination": destino, "outbound": f"{ida}T12:00:00.000Z",
         "inbound": f"{volta}T12:00:00.000Z" if volta else "null", "adt": adultos, "chd": 0, "inf": 0,
@@ -38,7 +38,7 @@ def latam(origem: str, destino: str, ida: str, volta: str | None = None, adultos
 
 def azul(origem: str, destino: str, ida: str, volta: str | None = None, adultos: int = 1,
          pontos: bool = True) -> str:
-    """Seleção de voo Azul (datas MM/dd/yyyy; cc=PTS para pontos). Resultado pode exigir login."""
+    """Azul flight selection (dates MM/dd/yyyy; cc=PTS for points). Results may require login."""
     def mdy(iso: str) -> str:
         return date.fromisoformat(iso).strftime("%m/%d/%Y")
 
@@ -50,16 +50,23 @@ def azul(origem: str, destino: str, ida: str, volta: str | None = None, adultos:
 
 
 def gol(origem: str, destino: str, ida: str, volta: str | None = None, adultos: int = 1) -> str:
-    """GOL não tem deep link estável verificado; a busca Smiles com searchType=g3 cobre voos GOL em milhas.
-    Para dinheiro, o link do Google Flights da opção é o caminho."""
+    """GOL has no verified stable deep link; the Smiles search with searchType=g3 covers GOL flights with miles.
+    For cash, use the option's Google Flights link."""
     return smiles(origem, destino, ida, volta, adultos)
 
 
 def programa(prog: str, origem: str, destino: str, ida: str, volta: str | None = None, adultos: int = 1) -> str | None:
-    if prog == "smiles":
+    """Best link to book an award: a deep link with route/date when we have one, else the program's award-search page."""
+    from infra.programas import carregar
+
+    p = carregar().programa(prog)
+    link = p.link if p else prog
+    if link == "smiles":
         return smiles(origem, destino, ida, volta, adultos)
-    if prog == "latam_pass":
+    if link == "latam_pass":
         return latam(origem, destino, ida, volta, adultos, milhas=True)
-    if prog == "azul":
+    if link == "azul":
         return azul(origem, destino, ida, volta, adultos, pontos=True)
+    if link and link.startswith("http"):
+        return link
     return None

@@ -1,6 +1,6 @@
 ---
 name: miles-researcher
-description: Collects award availability (Smiles and Azul via Seats.aero; LATAM Pass via the browser on LATAM's site, with a login done by the user themselves) and confirms finalist options live. Used by /farehunter:search.
+description: Collects award availability (every program Seats.aero covers — Smiles, Azul, United, Aeroplan, Flying Blue, Avios, etc.; LATAM Pass via the browser on LATAM's site, with a login done by the user themselves) and confirms finalist options live. Used by /farehunter:search.
 tools: Bash, Read, Write, mcp__plugin_farehunter_playwright__browser_navigate, mcp__plugin_farehunter_playwright__browser_evaluate, mcp__plugin_farehunter_playwright__browser_wait_for, mcp__plugin_farehunter_playwright__browser_network_requests, mcp__plugin_farehunter_playwright__browser_network_request, mcp__plugin_farehunter_playwright__browser_snapshot, mcp__plugin_farehunter_playwright__browser_click, mcp__plugin_farehunter_playwright__browser_tabs, mcp__plugin_farehunter_playwright__browser_close
 ---
 
@@ -9,7 +9,7 @@ You collect **miles** prices for a `/farehunter:search` run. You do not analyse 
 Every command: `uv run --project "${CLAUDE_PLUGIN_ROOT}" farehunter <subcommand>`.
 
 ## Mode `collect`
-1. Smiles and Azul via Seats.aero:
+1. Award programs via Seats.aero (the user's programs plus transfer partners of their points; all programs when the profile has none):
    ```bash
    uv run --project "${CLAUDE_PLUGIN_ROOT}" farehunter coletar milhas --run "$RUN"
    ```
@@ -27,7 +27,7 @@ Every command: `uv run --project "${CLAUDE_PLUGIN_ROOT}" farehunter <subcommand>
      [{"fonte": "playwright_latam", "tipo": "milhas", "programa": "latam_pass", "trecho": "ida",
        "pernas": [{"origem": "GRU", "destino": "REC", "data": "2026-12-10", "partida": "07:00", "chegada": "10:10",
                    "cia": "LA", "voos": ["LA 3676"], "conexoes": 0, "duracao_min": 190}],
-       "milhas": 12000, "taxas_brl": 35.9, "confirmado_ao_vivo": true, "link": "https://..."}]
+       "milhas": 12000, "taxas": 35.9, "confirmado_ao_vivo": true, "link": "https://..."}]
      ```
      (`trecho` is `ida` = outbound or `volta` = return.) Save to `$RUN/bruto/latam.json` and register:
      ```bash

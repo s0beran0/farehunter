@@ -126,3 +126,29 @@ README (instalação, uso, cálculo, limitações, como trocar uma fonte) e CLAU
   - um teste exige que todos os idiomas tenham as mesmas chaves.
 - **Instaladores com mensagens em pt/en/es**, conforme o idioma do sistema (ou `FAREHUNTER_LANG`).
 - **O que continua em português:** código interno, chaves do JSON e os dados de domínio (programas brasileiros, BRL). Multi-idioma não significa multi-país: as fontes e os programas continuam os do Brasil.
+
+## Internacionalização de verdade (2026-10-02)
+- **Moeda da busca:** cada busca usa uma moeda só (`moeda` do perfil ou `--moeda`), e todo valor é convertido para ela.
+  - O motor ficou neutro em moeda: os campos `*_brl` viraram `preco`, `taxas`, `custo` etc.
+  - O Google Flights e o Kiwi já buscam na moeda e no país do usuário (`pais` define o ponto de venda).
+- **Câmbio sem chave:** Frankfurter (BCE), com open.er-api.com como fallback para ARS, CLP, COP etc. Cache de 24h.
+  - As taxas de resgate (USD, GBP, EUR…) são convertidas.
+  - Os CPMs do milheiro são convertidos da moeda de cada programa para a moeda da busca.
+  - Se não houver cotação, o valor fica de fora e o relatório avisa.
+- **Registro de programas** (`config/programas.yaml`, parte do plugin): 30 programas de milhas e 14 de pontos.
+  - O registro guarda nome, cias, fonte no Seats.aero, link e as transferências (proporção e mínimo).
+  - Isso substitui as listas fixas de Smiles/LATAM/Azul espalhadas pelo código.
+  - Adicionar um programa é editar um YAML.
+- **Milheiro mesclado:** a tabela do usuário (`~/.farehunter/config/milheiro.yaml`) vence programa a programa. Programas que só existem na tabela do plugin entram sozinhos, então uma atualização do plugin traz programas novos sem apagar os valores do usuário.
+- **Valores internacionais:**
+  - **Uso:** mediana de TPG, Upgraded Points, Frequent Miler e NerdWallet, em USD por 1.000.
+  - **Compra:** preço promocional recorrente, com data de fim quando houver. Programas sem preço publicado ficam vazios, sem chute.
+  - Fontes em `docs/research.md` §10.
+- **Programas consultados no Seats.aero:**
+  - os do perfil (`tem_conta`) mais os parceiros de transferência dos pontos do usuário;
+  - sem nenhum dos dois, todos os programas, sem filtro.
+- **Promoções por região do país:** Brasil, EUA, Reino Unido, Austrália e Canadá; os demais países usam os blogs dos EUA. Os feeds são lidos com User-Agent honesto de leitor RSS (todos responderam 200). Além dos feeds, há páginas que listam os bônus de transferência ativos.
+- **Links:**
+  - Smiles, LATAM e Azul abrem a busca já com rota e data.
+  - Os outros programas abrem a página de resgates oficial; algumas URLs só tiveram o domínio confirmado, porque os sites bloqueiam scripts.
+- **Comentários e docstrings em inglês** (pedido do usuário). Os identificadores continuam em português.

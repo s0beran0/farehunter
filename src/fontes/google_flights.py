@@ -1,11 +1,11 @@
-"""Google Flights via `fli` (pacote PyPI `flights`, versão fixada). Validado em 2026-10-02 (docs/research.md).
+"""Google Flights via `fli` (PyPI package `flights`, pinned version). Validated 2026-10-02 (docs/research.md).
 
-- `buscar_data`: voos de uma data (só ida ou ida e volta), com cia, número de voo e horários.
-- `grade`: menor preço por data (calendário). Só ida, ou ida e volta com duração fixa em noites.
+- `buscar_data`: flights on one date (one way or round trip), with airline, flight number and times.
+- `grade`: lowest price per date (calendar). One way, or round trip with a fixed number of nights.
 
-O preço do fli é o TOTAL para todos os passageiros; aqui vira preço por passageiro.
-Os endpoints são frágeis (Google mudou a assinatura em ago/2026). Falhas viram exceção `FonteIndisponivel`
-e o subagente registra a fonte como indisponível.
+fli's price is the TOTAL for all passengers; here it becomes a per-passenger price.
+The endpoints are fragile (Google changed request signing in Aug 2026). Failures raise `FonteIndisponivel`
+and the subagent records the source as unavailable.
 """
 
 from __future__ import annotations
@@ -16,7 +16,12 @@ from urllib.parse import quote
 from infra.cache import Cache, chave_busca
 from normalizacao.schema import Opcao, Perna
 
-LOC = dict(currency="BRL", language="pt-BR", country="BR")
+IDIOMA_GOOGLE = {"pt": "pt-BR", "en": "en", "es": "es"}
+
+
+def _loc(moeda: str, pais: str, idioma: str = "en") -> dict:
+    """Locale for Google: currency of the prices and point of sale (country)."""
+    return dict(currency=moeda.upper(), language=IDIOMA_GOOGLE.get(idioma, "en"), country=pais.upper())
 FONTE = "google_flights"
 
 
@@ -24,16 +29,17 @@ class FonteIndisponivel(RuntimeError):
     pass
 
 
-def link_google(origem: str, destino: str, ida: str, volta: str | None = None) -> str:
+def link_google(origem: str, destino: str, ida: str, volta: str | None = None, moeda: str = "BRL",
+                pais: str = "BR") -> str:
     q = f"Flights to {destino} from {origem} on {ida}" + (f" through {volta}" if volta else " oneway")
-    return f"https://www.google.com/travel/flights?q={quote(q)}&curr=BRL&hl=pt-BR&gl=BR"
+    return f"https://www.google.com/travel/flights?q={quote(q)}&curr={moeda.upper()}&gl={pais.upper()}"
 
 
 def _fli():
     try:
         from fli import models, search
     except ImportError as e:  # pragma: no cover
-        raise FonteIndisponivel(f"fli não instalado: {e}") from e
+        raise FonteIndisponivel(f"fli not installed: {e}") from e
     return models, search
 
 
@@ -75,9 +81,11 @@ def _perna(resultado) -> Perna:
 def buscar_data(
     origem: str, destino: str, ida: str, volta: str | None = None, passageiros: int = 1,
     cabine: str = "economy", max_resultados: int = 40, cache: Cache | None = None,
+    moeda: str = "BRL", pais: str = "BR",
 ) -> list[Opcao]:
     cache = cache or Cache()
-    chave = chave_busca("data", origem, destino, ida, volta, passageiros, cabine)
+    chave = chave_busca("data", origem, destino, ida, volta, passageiros, cabine, moeda, pais)
+    loc = _loc(moeda, pais)
     if (hit := cache.get(FONTE, chave)) is not None:
         return [Opcao.from_dict(d) for d in hit]
 
@@ -102,15 +110,15 @@ def buscar_data(
     )
     try:
         if volta:
-            brutos = search.SearchFlights().search(filtros, top_n=5, **LOC) or []
+            brutos = search.SearchFlights().search(filtros, top_n=5, **loc) or []
         else:
-            brutos = search.SearchFlights().search(filtros, **LOC) or []
-    except Exception as e:  # o fli levanta vários tipos ao quebrar
+            brutos = search.SearchFlights().search(filtros, **loc) or []
+    except Exception as e:  # fli raises several exception types when it breaks
         raise FonteIndisponivel(f"fli falhou na busca por data: {type(e).__name__}: {e}") from e
     if not brutos:
-        raise FonteIndisponivel("fli devolveu lista vazia (possível bloqueio do Google)")
+        raise FonteIndisponivel("fli returned an empty list (Google may be blocking)")
 
-    link = link_google(origem, destino, ida, volta)
+    link = link_google(origem, destino, ida, volta, moeda, pais)
     opcoes = []
     for r in brutos[: max_resultados]:
         if volta:
@@ -120,7 +128,7 @@ def buscar_data(
             pernas, preco, trecho = [_perna(r)], r.price, "ida"
         opcoes.append(Opcao(
             fonte=FONTE, tipo="dinheiro", trecho=trecho, pernas=pernas,
-            preco_brl=round(preco / passageiros, 2), link=link,
+            preco=round(preco / passageiros, 2), link=link,
         ))
     cache.set(FONTE, chave, [o.to_dict() for o in opcoes])
     return opcoes
@@ -129,10 +137,11 @@ def buscar_data(
 def grade(
     origem: str, destino: str, inicio: str, fim: str, passageiros: int = 1, noites: int | None = None,
     cabine: str = "economy", trecho: str = "ida", cache: Cache | None = None,
+    moeda: str = "BRL", pais: str = "BR",
 ) -> list[Opcao]:
-    """Menor preço por data de partida em [inicio, fim]. Com `noites`, é ida e volta com essa duração."""
+    """Lowest price per departure date in [inicio, fim]. With `noites`, a round trip of that length."""
     cache = cache or Cache()
-    chave = chave_busca("grade", origem, destino, inicio, fim, passageiros, noites, cabine, trecho)
+    chave = chave_busca("grade", origem, destino, inicio, fim, passageiros, noites, cabine, trecho, moeda, pais)
     if (hit := cache.get(FONTE, chave)) is not None:
         return [Opcao.from_dict(d) for d in hit]
 
@@ -158,24 +167,24 @@ def grade(
     if noites is not None:
         kwargs["duration"] = noites
     try:
-        dias = search.SearchDates().search(models.DateSearchFilters(**kwargs), **LOC) or []
+        dias = search.SearchDates().search(models.DateSearchFilters(**kwargs), **_loc(moeda, pais)) or []
     except Exception as e:
         raise FonteIndisponivel(f"fli falhou na grade de datas: {type(e).__name__}: {e}") from e
     if not dias:
-        raise FonteIndisponivel("grade de datas vazia (possível bloqueio do calendário do Google)")
+        raise FonteIndisponivel("empty date grid (Google may be blocking the calendar)")
 
     opcoes = []
     for d in dias:
         datas = [x.date().isoformat() if hasattr(x, "date") else str(x) for x in d.date]
         if noites is not None:
             pernas = [Perna(origem, destino, datas[0]), Perna(destino, origem, datas[1])]
-            t, link = "ida_volta", link_google(origem, destino, datas[0], datas[1])
+            t, link = "ida_volta", link_google(origem, destino, datas[0], datas[1], moeda, pais)
         else:
             pernas = [Perna(origem, destino, datas[0])]
-            t, link = trecho, link_google(origem, destino, datas[0])
+            t, link = trecho, link_google(origem, destino, datas[0], moeda=moeda, pais=pais)
         opcoes.append(Opcao(
-            fonte=FONTE, tipo="dinheiro", trecho=t, pernas=pernas, preco_brl=round(d.price / passageiros, 2),
-            link=link, observacoes=["preço da grade de datas (sem detalhe do voo)"],
+            fonte=FONTE, tipo="dinheiro", trecho=t, pernas=pernas, preco=round(d.price / passageiros, 2),
+            link=link, observacoes=["date-grid price (no flight details)"],
         ))
     cache.set(FONTE, chave, [o.to_dict() for o in opcoes])
     return opcoes

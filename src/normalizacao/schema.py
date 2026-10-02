@@ -1,9 +1,9 @@
-"""Schema normalizado de opção (SPEC §7.1).
+"""Normalized option schema (SPEC §7.1).
 
-Convenções:
-- Valores monetários e milhas são **por passageiro**. O motor multiplica pelo número de passageiros.
-- `trecho` diz o que a opção cobre: "ida", "volta" ou "ida_volta" (bilhete único de ida e volta).
-- Cada `Perna` é uma direção completa (pode ter conexões).
+Conventions:
+- Money amounts and miles are **per passenger**, in the search currency. The engine multiplies by passengers.
+- `trecho` says what the option covers: "ida" (outbound), "volta" (return) or "ida_volta" (single round-trip ticket).
+- Each `Perna` is one full direction (it may have connections).
 """
 
 from __future__ import annotations
@@ -25,7 +25,6 @@ FONTES_CONHECIDAS = {
     "manual",
 }
 TIPOS = {"dinheiro", "milhas"}
-PROGRAMAS = {"smiles", "latam_pass", "azul"}
 TRECHOS = {"ida", "volta", "ida_volta"}
 
 
@@ -33,14 +32,14 @@ TRECHOS = {"ida", "volta", "ida_volta"}
 class Perna:
     origem: str
     destino: str
-    data: str  # YYYY-MM-DD (data de partida)
+    data: str  # YYYY-MM-DD (departure date)
     partida: str | None = None  # HH:MM
     chegada: str | None = None  # HH:MM
-    cia: str | None = None  # código IATA da cia operadora principal
+    cia: str | None = None  # IATA code of the main operating airline
     voos: list[str] = field(default_factory=list)
     conexoes: int = 0
     duracao_min: int | None = None
-    escalas_min: list[int] = field(default_factory=list)  # tempo de cada conexão, se conhecido
+    escalas_min: list[int] = field(default_factory=list)  # length of each connection, if known
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "Perna":
@@ -65,9 +64,9 @@ class Opcao:
     pernas: list[Perna]
     trecho: str = "ida"
     programa: str | None = None
-    preco_brl: float | None = None
+    preco: float | None = None
     milhas: int | None = None
-    taxas_brl: float = 0.0
+    taxas: float = 0.0
     bagagem_inclusa: bool = False
     assentos_disponiveis: int | None = None
     confirmado_ao_vivo: bool = False
@@ -88,7 +87,7 @@ class Opcao:
                 self.programa,
                 self.trecho,
                 [(p.origem, p.destino, p.data, p.partida, p.voos) for p in self.pernas],
-                self.preco_brl,
+                self.preco,
                 self.milhas,
             ],
             sort_keys=True,
@@ -98,20 +97,22 @@ class Opcao:
     def validar(self) -> list[str]:
         erros: list[str] = []
         if self.tipo not in TIPOS:
-            erros.append(f"tipo inválido: {self.tipo}")
+            erros.append(f"invalid tipo: {self.tipo}")
         if self.trecho not in TRECHOS:
-            erros.append(f"trecho inválido: {self.trecho}")
+            erros.append(f"invalid trecho: {self.trecho}")
         if not self.pernas:
-            erros.append("opção sem pernas")
+            erros.append("option without pernas")
         if self.trecho == "ida_volta" and len(self.pernas) < 2:
             erros.append("trecho ida_volta precisa de 2 pernas")
-        if self.tipo == "dinheiro" and (self.preco_brl is None or self.preco_brl <= 0):
-            erros.append("opção em dinheiro sem preco_brl")
+        if self.tipo == "dinheiro" and (self.preco is None or self.preco <= 0):
+            erros.append("cash option without preco")
         if self.tipo == "milhas":
-            if self.programa not in PROGRAMAS:
-                erros.append(f"programa inválido: {self.programa}")
+            from infra.programas import carregar
+
+            if not carregar().eh_milhas(self.programa or ""):
+                erros.append(f"invalid programa: {self.programa}")
             if not self.milhas or self.milhas <= 0:
-                erros.append("opção em milhas sem milhas")
+                erros.append("miles option without milhas")
         return erros
 
     @property
@@ -145,9 +146,9 @@ class Opcao:
             pernas=[Perna.from_dict(p) for p in d["pernas"]],
             trecho=d.get("trecho", "ida_volta" if len(d["pernas"]) >= 2 else "ida"),
             programa=d.get("programa"),
-            preco_brl=(float(d["preco_brl"]) if d.get("preco_brl") is not None else None),
+            preco=(float(d["preco"]) if d.get("preco") is not None else None),
             milhas=(int(d["milhas"]) if d.get("milhas") is not None else None),
-            taxas_brl=float(d.get("taxas_brl") or 0),
+            taxas=float(d.get("taxas") or 0),
             bagagem_inclusa=bool(d.get("bagagem_inclusa", False)),
             assentos_disponiveis=d.get("assentos_disponiveis"),
             confirmado_ao_vivo=bool(d.get("confirmado_ao_vivo", False)),
@@ -159,18 +160,18 @@ class Opcao:
 
 
 def carregar_opcoes(dados: list[dict[str, Any]]) -> tuple[list[Opcao], list[str]]:
-    """Converte dicts em Opcao, descartando inválidas. Retorna (opções, avisos)."""
+    """Convert dicts into Opcao, dropping invalid ones. Returns (options, warnings)."""
     opcoes: list[Opcao] = []
     avisos: list[str] = []
     for i, d in enumerate(dados):
         try:
             op = Opcao.from_dict(d)
         except (KeyError, TypeError, ValueError) as e:
-            avisos.append(f"opção #{i} descartada: campo ausente/inválido ({e})")
+            avisos.append(f"option #{i} dropped: missing/invalid field ({e})")
             continue
         erros = op.validar()
         if erros:
-            avisos.append(f"opção #{i} ({d.get('fonte')}) descartada: {'; '.join(erros)}")
+            avisos.append(f"option #{i} ({d.get('fonte')}) dropped: {'; '.join(erros)}")
             continue
         opcoes.append(op)
     return opcoes, avisos

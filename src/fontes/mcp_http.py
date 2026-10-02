@@ -1,7 +1,7 @@
-"""Chamada mínima a um servidor MCP remoto (Streamable HTTP) sem SDK: initialize + tools/call.
+"""Minimal call to a remote MCP server (Streamable HTTP) without the SDK: initialize + tools/call.
 
-Usado para Kiwi e Seats.aero, que não exigem sessão. Assim a resposta bruta vai para o normalizador
-sem passar pelo contexto do modelo.
+Used for Kiwi and Seats.aero, which need no session. The raw response goes to the normalizer
+without passing through the model's context.
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ def _rpc(http: httpx.Client, url: str, metodo: str, params: dict, id_: int, head
 
 
 def chamar_tool(url: str, tool: str, argumentos: dict, http: httpx.Client | None = None, timeout: float = 60) -> dict:
-    """Retorna o `result` do tools/call. Levanta ErroMCP se a tool reportar erro."""
+    """Return the tools/call `result`. Raises ErroMCP if the tool reports an error."""
     http = http or httpx.Client(timeout=timeout)
     headers = dict(HEADERS)
     init = http.post(url, headers=headers, json={
@@ -54,7 +54,7 @@ def chamar_tool(url: str, tool: str, argumentos: dict, http: httpx.Client | None
 
 
 def json_do_resultado(res: dict) -> dict:
-    """structuredContent, se houver; senão o primeiro bloco de texto que for JSON."""
+    """structuredContent if present; otherwise the first text block that is JSON."""
     if isinstance(res.get("structuredContent"), dict):
         return res["structuredContent"]
     for c in res.get("content", []):

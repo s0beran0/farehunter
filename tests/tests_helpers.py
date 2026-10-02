@@ -10,9 +10,9 @@ def cenario_ida_volta():
         return Perna(o, de, d, cia=cia, voos=[voo], duracao_min=200)
 
     opcoes = [
-        Opcao(fonte="kiwi", tipo="dinheiro", preco_brl=400, pernas=[perna("2026-12-10")]),
-        Opcao(fonte="kiwi", tipo="dinheiro", trecho="volta", preco_brl=300, pernas=[perna("2026-12-17", "REC", "GRU", voo="G3 2")]),
-        Opcao(fonte="seats_aero", tipo="milhas", programa="smiles", trecho="volta", milhas=8000, taxas_brl=30,
+        Opcao(fonte="kiwi", tipo="dinheiro", preco=400, pernas=[perna("2026-12-10")]),
+        Opcao(fonte="kiwi", tipo="dinheiro", trecho="volta", preco=300, pernas=[perna("2026-12-17", "REC", "GRU", voo="G3 2")]),
+        Opcao(fonte="seats_aero", tipo="milhas", programa="smiles", trecho="volta", milhas=8000, taxas=30,
               pernas=[perna("2026-12-17", "REC", "GRU", voo="G3 2")]),
     ]
     pedido = Pedido(origens=["GRU"], destinos=["REC"], data_ida="2026-12-10", data_volta="2026-12-17", flex_dias=1)

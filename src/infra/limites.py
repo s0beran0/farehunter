@@ -1,4 +1,4 @@
-"""Contadores locais de uso: limite diário da API do Seats.aero e páginas de Playwright por execução (SPEC §8)."""
+"""Local usage counters: Seats.aero daily API limit and Playwright pages per run (SPEC §8)."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ ARQUIVO = DADOS / "cache" / "contadores.json"
 
 LIMITES_PADRAO = {
     "seats_aero_chamadas_dia": 1000,  # Partner API (Pro)
-    "seats_aero_mcp_chamadas_dia": 300,  # MCP anônimo (limite do servidor: 1.000/IP/dia)
+    "seats_aero_mcp_chamadas_dia": 300,  # anonymous MCP (server limit: 1,000/IP/day)
     "playwright_paginas_por_execucao": 15,
 }
 
@@ -51,14 +51,14 @@ class Contadores:
         return self.limites[nome] - self.usado(nome, execucao)
 
     def consumir(self, nome: str, quantidade: int = 1, execucao: str | None = None) -> int:
-        """Registra uso; levanta LimiteExcedido se passar do limite. Retorna o restante."""
+        """Record usage; raises LimiteExcedido when over the limit. Returns what is left."""
         dados = self._ler()
         chave = self._chave(nome, execucao)
         atual = dados.get(chave, 0)
         if atual + quantidade > self.limites[nome]:
             raise LimiteExcedido(f"{nome}: limite {self.limites[nome]} atingido ({atual} usados)")
         dados[chave] = atual + quantidade
-        # descarta contadores diários antigos
+        # drop old daily counters
         hoje = self.hoje().isoformat()
         dados = {k: v for k, v in dados.items() if not (k.split(":")[0].endswith("_dia") and not k.endswith(hoje))}
         self._gravar(dados)

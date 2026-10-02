@@ -1,12 +1,14 @@
 {
   "name": "farehunter-marketplace",
-  "description": "FareHunter: flights and miles finder for Brazil, in Portuguese, English and Spanish.",
-  "owner": { "name": "Eduardo Borges" },
+  "description": "FareHunter: cash × miles × points flight finder for travellers anywhere, in English, Portuguese and Spanish.",
+  "owner": {
+    "name": "Eduardo Borges"
+  },
   "plugins": [
     {
       "name": "farehunter",
       "source": "./",
-      "description": "Cash × miles × points fare finder for Brazil (pt/en/es)."
+      "description": "Cash × miles × points fare finder, any country and currency (en/pt/es)."
     }
   ]
 }

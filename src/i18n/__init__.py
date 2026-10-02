@@ -1,8 +1,8 @@
-"""Textos do relatório e do motor em vários idiomas (pt, en, es).
+"""Report and engine texts in several languages (pt, en, es), plus currency-aware number formatting.
 
-Uso: `i18n.definir("en")` uma vez (a CLI faz isso a partir do pedido/perfil) e `t("chave", **valores)`.
-Idioma desconhecido cai em inglês; chave ausente num idioma cai no português (idioma de referência).
-Para adicionar um idioma: copie o bloco "en" em mensagens.py, traduza e acrescente o código em IDIOMAS.
+Usage: call `i18n.definir("en")` once (the CLI does it from the request/profile), then `t("key", **values)`.
+An unknown language falls back to English; a key missing in a language falls back to Portuguese (reference language).
+To add a language: copy the "en" block in mensagens.py, translate it and add its code to IDIOMAS.
 """
 
 from __future__ import annotations
@@ -13,6 +13,10 @@ from i18n.mensagens import MENSAGENS
 
 IDIOMAS = ("pt", "en", "es")
 _atual = "pt"
+_moeda = "BRL"
+SIMBOLOS = {"BRL": "R$", "USD": "US$", "EUR": "€", "GBP": "£", "CAD": "CA$", "AUD": "A$", "MXN": "MX$", "ARS": "AR$",
+            "CLP": "CLP$", "COP": "COL$", "PEN": "S/", "UYU": "$U", "JPY": "¥", "CHF": "CHF", "NZD": "NZ$"}
+SEM_CENTAVOS = {"JPY", "CLP", "COP", "KRW", "ARS"}
 
 
 def normalizar(idioma: str | None) -> str:
@@ -32,6 +36,16 @@ def atual() -> str:
     return _atual
 
 
+def definir_moeda(moeda: str | None) -> str:
+    global _moeda
+    _moeda = (moeda or "BRL").upper()
+    return _moeda
+
+
+def moeda() -> str:
+    return _moeda
+
+
 def t(chave: str, **kw) -> str:
     texto = MENSAGENS[_atual].get(chave)
     if texto is None:
@@ -40,13 +54,16 @@ def t(chave: str, **kw) -> str:
 
 
 def dinheiro(v: float | None) -> str:
-    """Valor em BRL no formato do idioma: R$ 1.147,00 (pt/es) ou R$1,147.00 (en)."""
+    """Amount in the current search currency, formatted for the language: R$ 1.147,00 (pt/es) or R$1,147.00 (en)."""
     if v is None:
         return "—"
+    simbolo = SIMBOLOS.get(_moeda, _moeda + " ")
+    casas = 0 if _moeda in SEM_CENTAVOS else 2
+    s = f"{v:,.{casas}f}"
     if _atual == "en":
-        return f"R${v:,.2f}"
-    s = f"{v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-    return f"R$ {s}"
+        return f"{simbolo}{s}"
+    s = s.replace(",", "X").replace(".", ",").replace("X", ".")
+    return f"{simbolo} {s}"
 
 
 def numero(n: int) -> str:

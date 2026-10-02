@@ -1,0 +1,192 @@
+# Program registry: the engine only knows what is listed here. Shipped with the plugin (not user data).
+#
+# milhas.<id>:  airline loyalty program
+#   nome     display name
+#   cias     IATA codes of the program's own airlines (to match an award with a cash fare)
+#   seats    Seats.aero source id (null = not covered, e.g. LATAM Pass)
+#   moeda    reference currency of this program's CPM values in milheiro.yaml
+#   link     "smiles" | "latam_pass" | "azul" (deep link with route and date) or the award-search URL
+# pontos.<id>:  transferable points currency (credit card / bank)
+#   parceiros: {<miles program id>: {proporcao: points per mile, minimo: minimum points per transfer}}
+#
+# Sources (checked 2026-10-02, see docs/research.md §10): award-search URLs were fetched one by one; sites that
+# block scripts (403/timeouts) only had their domain confirmed. Transfer ratios: TPG transfer-partner guide
+# (2026-09-01), Citi→JAL (2026-09-21), Prince of Travel (CA), Head for Points (UK), Point Hacks (AU).
+# Ratio "1000:800" (1,000 points → 800 miles) is stored as proporcao 1.25 points per mile.
+#
+# To add a program: add it here, put its CPM in config/milheiro.yaml and run `uv run pytest`.
+
+milhas:
+  # --- Brazil ---
+  smiles:      {nome: Smiles, cias: [G3], seats: smiles, moeda: BRL, link: smiles}
+  latam_pass:  {nome: LATAM Pass, cias: [LA, JJ], seats: null, moeda: BRL, link: latam_pass}
+  azul:        {nome: Azul Fidelidade, cias: [AD], seats: azul, moeda: BRL, link: azul}
+  # --- North America ---
+  united:      {nome: United MileagePlus, cias: [UA], seats: united, moeda: USD, link: "https://www.united.com/en/us"}
+  american:    {nome: American AAdvantage, cias: [AA], seats: american, moeda: USD, link: "https://www.aa.com/booking/find-flights"}
+  delta:       {nome: Delta SkyMiles, cias: [DL], seats: delta, moeda: USD, link: "https://www.delta.com/flightsearch/book-a-flight"}
+  alaska:      {nome: Alaska Atmos Rewards, cias: [AS], seats: alaska, moeda: USD, link: "https://www.alaskaair.com/search"}
+  aeroplan:    {nome: Air Canada Aeroplan, cias: [AC], seats: aeroplan, moeda: USD, link: "https://www.aircanada.com/aeroplan/redeem/"}
+  aeromexico:  {nome: Aeroméxico Rewards, cias: [AM], seats: aeromexico, moeda: USD, link: "https://www.aeromexico.com/en-us"}
+  # --- Latin America ---
+  lifemiles:   {nome: Avianca LifeMiles, cias: [AV], seats: lifemiles, moeda: USD, link: "https://www.lifemiles.com/fly/find"}
+  copa:        {nome: Copa ConnectMiles, cias: [CM], seats: copa, moeda: USD, link: "https://www.copaair.com/en-us/"}
+  # --- Europe ---
+  flyingblue:  {nome: Air France-KLM Flying Blue, cias: [AF, KL], seats: flyingblue, moeda: USD, link: "https://www.flyingblue.com/en/spend/flights"}
+  british:     {nome: British Airways Club (Avios), cias: [BA], seats: british, moeda: USD, link: "https://www.britishairways.com/travel/redeem/execclub/"}
+  iberia:      {nome: Iberia Club (Avios), cias: [IB], seats: iberia, moeda: USD, link: "https://www.iberia.com/us/flights-with-avios/"}
+  virginatlantic: {nome: Virgin Atlantic Flying Club, cias: [VS], seats: virginatlantic, moeda: USD, link: "https://www.virginatlantic.com/en-US/flying-club"}
+  lufthansa:   {nome: Lufthansa Miles & More, cias: [LH, LX, OS], seats: lufthansa, moeda: USD, link: "https://www.miles-and-more.com/row/en/spend/flights/award-flights.html"}
+  eurobonus:   {nome: SAS EuroBonus, cias: [SK], seats: eurobonus, moeda: USD, link: "https://www.flysas.com/en/eurobonus/"}
+  finnair:     {nome: Finnair Plus (Avios), cias: [AY], seats: finnair, moeda: USD, link: "https://www.finnair.com/en/finnair-plus/"}
+  turkish:     {nome: Turkish Miles&Smiles, cias: [TK], seats: turkish, moeda: USD, link: "https://www.turkishairlines.com/en-int/miles-and-smiles/"}
+  # --- Middle East / Africa ---
+  qatar:       {nome: Qatar Privilege Club (Avios), cias: [QR], seats: qatar, moeda: USD, link: "https://www.qatarairways.com/en/Privilege-Club/redeem-avios.html"}
+  emirates:    {nome: Emirates Skywards, cias: [EK], seats: emirates, moeda: USD, link: "https://www.emirates.com/english/book/"}
+  etihad:      {nome: Etihad Guest, cias: [EY], seats: etihad, moeda: USD, link: "https://www.etihad.com/en/etihadguest/spend-miles"}
+  ethiopian:   {nome: Ethiopian ShebaMiles, cias: [ET], seats: ethiopian, moeda: USD, link: "https://www.ethiopianairlines.com/aa/shebamiles"}  # URL unverified
+  saudia:      {nome: Saudia AlFursan, cias: [SV], seats: saudia, moeda: USD, link: "https://www.saudia.com/alfursan"}  # URL unverified
+  # --- Asia / Oceania ---
+  singapore:   {nome: Singapore KrisFlyer, cias: [SQ], seats: singapore, moeda: USD, link: "https://www.singaporeair.com/en_UK/us/home"}
+  asiamiles:   {nome: Cathay Asia Miles, cias: [CX], seats: asiamiles, moeda: USD, link: "https://www.cathaypacific.com/cx/en_US/book-a-trip/redeem-flights/redeem-flight-awards.html"}
+  jal:         {nome: JAL Mileage Bank, cias: [JL], seats: jal, moeda: USD, link: "https://www.jal.co.jp/jp/en/jmb/award/"}
+  eva:         {nome: EVA Infinity MileageLands, cias: [BR], seats: eva, moeda: USD, link: "https://www.evaair.com/en-global/infinity-mileagelands/"}
+  qantas:      {nome: Qantas Frequent Flyer, cias: [QF], seats: qantas, moeda: USD, link: "https://www.qantas.com/en-au/frequent-flyer/use-points/classic-flight-rewards"}
+  velocity:    {nome: Virgin Australia Velocity, cias: [VA], seats: velocity, moeda: USD, link: "https://www.velocityfrequentflyer.com/"}
+
+pontos:
+  # --- Brazil (blogs, Sep 2026; docs/research.md §5.6) ---
+  livelo:      {nome: Livelo, moeda: BRL, parceiros: {smiles: {proporcao: 1, minimo: 10000}, latam_pass: {proporcao: 1, minimo: 12000}, azul: {proporcao: 1, minimo: 1000}}}
+  esfera:      {nome: Esfera, moeda: BRL, parceiros: {smiles: {proporcao: 1, minimo: 30000}, latam_pass: {proporcao: 1, minimo: 30000}, azul: {proporcao: 1, minimo: 30000}, iberia: {proporcao: 2, minimo: 30000}}}
+  inter_loop:  {nome: Inter Loop, moeda: BRL, parceiros: {smiles: {proporcao: 1, minimo: 0}, azul: {proporcao: 1, minimo: 0}}}
+  atomos:      {nome: C6 Átomos, moeda: BRL, parceiros: {smiles: {proporcao: 1, minimo: 1000}, latam_pass: {proporcao: 1, minimo: 100}, azul: {proporcao: 1, minimo: 100}}}
+
+  # --- United States (minimums of 1,000 are from a search summary; uncertain) ---
+  amex_mr:
+    nome: Amex Membership Rewards (US)
+    moeda: USD
+    parceiros:
+      aeroplan: {proporcao: 1, minimo: 1000}
+      flyingblue: {proporcao: 1, minimo: 1000}
+      british: {proporcao: 1, minimo: 1000}
+      iberia: {proporcao: 1, minimo: 1000}
+      qatar: {proporcao: 1, minimo: 1000}
+      delta: {proporcao: 1, minimo: 1000}
+      etihad: {proporcao: 1, minimo: 1000}
+      lifemiles: {proporcao: 1, minimo: 1000}
+      qantas: {proporcao: 1, minimo: 1000}
+      singapore: {proporcao: 1, minimo: 1000}
+      virginatlantic: {proporcao: 1, minimo: 1000}
+      asiamiles: {proporcao: 1.25, minimo: 1000}
+      emirates: {proporcao: 1.25, minimo: 1000}
+      aeromexico: {proporcao: 0.625, minimo: 1000}
+  chase_ur:
+    nome: Chase Ultimate Rewards
+    moeda: USD
+    parceiros:
+      aeroplan: {proporcao: 1, minimo: 1000}
+      flyingblue: {proporcao: 1, minimo: 1000}
+      british: {proporcao: 1, minimo: 1000}
+      iberia: {proporcao: 1, minimo: 1000}
+      singapore: {proporcao: 1, minimo: 1000}
+      united: {proporcao: 1, minimo: 1000}
+      virginatlantic: {proporcao: 1, minimo: 1000}
+  citi_ty:  # 1:1 on Strata Elite/Premier and Prestige; other Citi cards transfer at 1:0.7 (set proporcao 1.43 in milheiro.yaml)
+    nome: Citi ThankYou Points
+    moeda: USD
+    parceiros:
+      american: {proporcao: 1, minimo: 1000}
+      flyingblue: {proporcao: 1, minimo: 1000}
+      lifemiles: {proporcao: 1, minimo: 1000}
+      asiamiles: {proporcao: 1, minimo: 1000}
+      etihad: {proporcao: 1, minimo: 1000}
+      eva: {proporcao: 1, minimo: 1000}
+      qantas: {proporcao: 1, minimo: 1000}
+      qatar: {proporcao: 1, minimo: 1000}
+      singapore: {proporcao: 1, minimo: 1000}
+      turkish: {proporcao: 1, minimo: 1000}
+      virginatlantic: {proporcao: 1, minimo: 1000}
+      jal: {proporcao: 1, minimo: 1000}
+      emirates: {proporcao: 1.25, minimo: 1000}
+  capitalone:
+    nome: Capital One Miles
+    moeda: USD
+    parceiros:
+      aeromexico: {proporcao: 1, minimo: 1000}
+      aeroplan: {proporcao: 1, minimo: 1000}
+      flyingblue: {proporcao: 1, minimo: 1000}
+      lifemiles: {proporcao: 1, minimo: 1000}
+      british: {proporcao: 1, minimo: 1000}
+      asiamiles: {proporcao: 1, minimo: 1000}
+      etihad: {proporcao: 1, minimo: 1000}
+      finnair: {proporcao: 1, minimo: 1000}
+      qantas: {proporcao: 1, minimo: 1000}
+      qatar: {proporcao: 1, minimo: 1000}
+      singapore: {proporcao: 1, minimo: 1000}
+      turkish: {proporcao: 1, minimo: 1000}
+      emirates: {proporcao: 1.333, minimo: 1000}
+      eva: {proporcao: 1.333, minimo: 1000}
+      jal: {proporcao: 1.333, minimo: 1000}
+  bilt:  # minimum 2,000 for Blue members, 1,000 for Silver and above
+    nome: Bilt Rewards
+    moeda: USD
+    parceiros:
+      aeroplan: {proporcao: 1, minimo: 2000}
+      flyingblue: {proporcao: 1, minimo: 2000}
+      alaska: {proporcao: 1, minimo: 2000}
+      lifemiles: {proporcao: 1, minimo: 2000}
+      british: {proporcao: 1, minimo: 2000}
+      asiamiles: {proporcao: 1, minimo: 2000}
+      emirates: {proporcao: 1, minimo: 2000}
+      etihad: {proporcao: 1, minimo: 2000}
+      iberia: {proporcao: 1, minimo: 2000}
+      jal: {proporcao: 1, minimo: 2000}
+      qatar: {proporcao: 1, minimo: 2000}
+      turkish: {proporcao: 1, minimo: 2000}
+      united: {proporcao: 1, minimo: 2000}
+  wellsfargo:
+    nome: Wells Fargo Rewards
+    moeda: USD
+    parceiros:
+      flyingblue: {proporcao: 1, minimo: 0}
+      lifemiles: {proporcao: 1, minimo: 0}
+      british: {proporcao: 1, minimo: 0}
+      iberia: {proporcao: 1, minimo: 0}
+      virginatlantic: {proporcao: 1, minimo: 0}
+
+  # --- Amex Membership Rewards outside the US (no published point valuation: set cpm_valor_uso yourself) ---
+  amex_mr_ca:
+    nome: Amex Membership Rewards (Canada)
+    moeda: CAD
+    parceiros:
+      aeroplan: {proporcao: 1, minimo: 1000}
+      flyingblue: {proporcao: 1, minimo: 1000}
+      british: {proporcao: 1, minimo: 1000}
+      asiamiles: {proporcao: 1.333, minimo: 1000}
+      delta: {proporcao: 1.333, minimo: 1000}
+  amex_mr_uk:
+    nome: Amex Membership Rewards (UK)
+    moeda: GBP
+    parceiros:
+      british: {proporcao: 1, minimo: 0}
+      iberia: {proporcao: 1, minimo: 0}
+      qatar: {proporcao: 1, minimo: 0}
+      virginatlantic: {proporcao: 1, minimo: 0}
+      asiamiles: {proporcao: 1, minimo: 0}
+      delta: {proporcao: 1, minimo: 0}
+      flyingblue: {proporcao: 1, minimo: 0}
+      qantas: {proporcao: 1, minimo: 0}
+      eurobonus: {proporcao: 1, minimo: 0}
+      singapore: {proporcao: 1.5, minimo: 0}
+      emirates: {proporcao: 2, minimo: 0}
+  amex_mr_au:  # ratios can vary by card tier; Qantas 2:1 only for Ascent Premium; Emirates suspended
+    nome: Amex Membership Rewards (Australia)
+    moeda: AUD
+    parceiros:
+      velocity: {proporcao: 2, minimo: 0}
+      british: {proporcao: 2, minimo: 0}
+      asiamiles: {proporcao: 2, minimo: 0}
+      qatar: {proporcao: 2, minimo: 0}
+      virginatlantic: {proporcao: 2, minimo: 0}
+      qantas: {proporcao: 2, minimo: 0}
+      singapore: {proporcao: 3, minimo: 0}

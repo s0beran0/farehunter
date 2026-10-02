@@ -1,4 +1,4 @@
-"""Combinações, ranking, referência, matriz de datas e métricas de milhas (SPEC §5.2 e §5.3)."""
+"""Combinations, ranking, reference fare, date matrix and miles metrics (SPEC §5.2 and §5.3)."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from i18n import t
 from infra.config import Milheiro, Perfil
 from normalizacao.schema import Opcao
 
-MAX_POR_GRUPO = 25  # poda: melhores opções avulsas por (trecho, data, tipo, programa)
+MAX_POR_GRUPO = 25  # pruning: best standalone options per (leg, date, type, program)
 
 
 @dataclass
@@ -20,10 +20,12 @@ class Pedido:
     origens: list[str]
     destinos: list[str]
     data_ida: str
-    data_volta: str | None = None  # None = só ida
+    data_volta: str | None = None  # None = one way
     flex_dias: int = 3
     passageiros: int = 1
     cabine: str = "economy"
+    moeda: str = "BRL"  # ISO 4217; every amount in the search is in this currency
+    pais: str = "BR"  # ISO 3166-1 alpha-2; point of sale for cash fares
 
     @property
     def so_ida(self) -> bool:
@@ -39,7 +41,7 @@ class VereditoPrograma:
     programa: str
     melhor_opcao: Opcao
     milhas: int
-    taxas_brl: float
+    taxas: float
     preco_dinheiro_comparado: float | None
     base_comparacao: str
     cpm_equilibrio: float | None
@@ -59,9 +61,9 @@ class Resultado:
     avisos: list[str] = field(default_factory=list)
 
     def economia(self, c: CustoCombinacao) -> float | None:
-        if self.referencia is None or self.referencia.custo_brl is None or c.custo_brl is None:
+        if self.referencia is None or self.referencia.custo is None or c.custo is None:
             return None
-        return round(self.referencia.custo_brl - c.custo_brl, 2)
+        return round(self.referencia.custo - c.custo, 2)
 
 
 def _na_janela(d: str, ini: date, fim: date) -> bool:
@@ -69,7 +71,7 @@ def _na_janela(d: str, ini: date, fim: date) -> bool:
 
 
 def deduplicar(opcoes: list[Opcao]) -> list[Opcao]:
-    """Mesmo voo vindo de fontes diferentes (ex.: Kiwi e Google): fica o mais barato."""
+    """Same flight from different sources (e.g. Kiwi and Google): keep the cheapest."""
     melhores: dict[tuple, Opcao] = {}
     sem_chave: list[Opcao] = []
     for o in opcoes:
@@ -78,14 +80,14 @@ def deduplicar(opcoes: list[Opcao]) -> list[Opcao]:
             continue
         chave = (o.tipo, o.programa, o.trecho,
                  tuple((p.data, tuple(v.replace(" ", "").upper() for v in p.voos)) for p in o.pernas))
-        valor = o.preco_brl if o.tipo == "dinheiro" else (o.milhas, o.taxas_brl)
+        valor = o.preco if o.tipo == "dinheiro" else (o.milhas, o.taxas)
         atual = melhores.get(chave)
         if atual is None:
             melhores[chave] = o
             continue
-        valor_atual = atual.preco_brl if atual.tipo == "dinheiro" else (atual.milhas, atual.taxas_brl)
+        valor_atual = atual.preco if atual.tipo == "dinheiro" else (atual.milhas, atual.taxas)
         if o.confirmado_ao_vivo != atual.confirmado_ao_vivo:
-            if o.confirmado_ao_vivo:  # dado ao vivo vence o de cache, mesmo se mais caro
+            if o.confirmado_ao_vivo:  # live data beats cached data, even if more expensive
                 melhores[chave] = o
         elif valor < valor_atual:
             melhores[chave] = o
@@ -96,10 +98,10 @@ def _podar(opcoes: list[Opcao], perfil: Perfil, milheiro: Milheiro, pedido: Pedi
     grupos: dict[tuple, list[tuple[float, Opcao]]] = {}
     for o in opcoes:
         c = custo_combinacao([o], perfil, milheiro, pedido.passageiros, hoje)
-        if c.custo_brl is None:
+        if c.custo is None:
             continue
         chave = (o.trecho, o.data_ida, o.data_volta, o.tipo, o.programa)
-        grupos.setdefault(chave, []).append((c.custo_brl, o))
+        grupos.setdefault(chave, []).append((c.custo, o))
     podadas = []
     for itens in grupos.values():
         itens.sort(key=lambda x: x[0])
@@ -129,7 +131,7 @@ def gerar_combinacoes(opcoes: list[Opcao], pedido: Pedido) -> list[list[Opcao]]:
 
 
 def _chave_ordem(c: CustoCombinacao) -> tuple:
-    return (c.custo_brl, c.duracao_total_min or 10**9, c.conexoes_total)
+    return (c.custo, c.duracao_total_min or 10**9, c.conexoes_total)
 
 
 def _so_dinheiro(c: CustoCombinacao) -> bool:
@@ -147,44 +149,44 @@ def _mesma_rota_data(a: Opcao, b: Opcao) -> bool:
 
 
 def comparar_com_dinheiro(op_milhas: Opcao, dinheiro: list[Opcao]) -> tuple[float | None, str]:
-    """Acha a tarifa em dinheiro comparável a um resgate: mesmo voo > mesma cia/rota/data > mesma rota/data."""
+    """Find the cash fare comparable to an award: same flight > same airline/route/date > same route/date."""
     mesmos = [d for d in dinheiro if _mesmo_voo(op_milhas, d)]
     if mesmos:
-        return min(d.preco_brl for d in mesmos), t("base.mesmo_voo")
+        return min(d.preco for d in mesmos), t("base.mesmo_voo")
     mesma_rota = [d for d in dinheiro if _mesma_rota_data(op_milhas, d) and d.trecho == op_milhas.trecho]
     mesma_cia = [d for d in mesma_rota if d.cias & op_milhas.cias]
     if mesma_cia:
-        return min(d.preco_brl for d in mesma_cia), t("base.mesma_cia")
+        return min(d.preco for d in mesma_cia), t("base.mesma_cia")
     if mesma_rota:
-        return min(d.preco_brl for d in mesma_rota), t("base.mesma_rota")
+        return min(d.preco for d in mesma_rota), t("base.mesma_rota")
     return None, t("base.nenhuma")
 
 
 def vereditos_milhas(opcoes: list[Opcao], milheiro: Milheiro) -> list[VereditoPrograma]:
     dinheiro = [o for o in opcoes if o.tipo == "dinheiro"]
     out = []
-    for programa in ("smiles", "latam_pass", "azul"):
+    for programa in dict.fromkeys(o.programa for o in opcoes if o.tipo == "milhas"):
         resgates = [o for o in opcoes if o.tipo == "milhas" and o.programa == programa]
         if not resgates:
             continue
         melhor_cpm: VereditoPrograma | None = None
         for r in resgates:
             preco, base = comparar_com_dinheiro(r, dinheiro)
-            eq = cpm_equilibrio(preco, r.taxas_brl, r.milhas) if preco is not None else None
+            eq = cpm_equilibrio(preco, r.taxas, r.milhas) if preco is not None else None
             cpm = milheiro.programas.get(programa)
             compra = cpm.cpm_compra_atual if cpm else None
             v = VereditoPrograma(
                 programa=programa,
                 melhor_opcao=r,
                 milhas=r.milhas,
-                taxas_brl=r.taxas_brl,
+                taxas=r.taxas,
                 preco_dinheiro_comparado=preco,
                 base_comparacao=base,
                 cpm_equilibrio=eq,
                 cpm_compra_atual=compra,
                 compensa_comprar=(eq > compra) if (eq is not None and compra is not None) else None,
             )
-            # "melhor resgate" = maior CPM de equilíbrio (cada milha rende mais); sem comparação, menos milhas.
+            # "best award" = highest break-even CPM (each mile is worth more); without a comparison, fewest miles.
             if melhor_cpm is None:
                 melhor_cpm = v
             elif (v.cpm_equilibrio or -1, -v.milhas) > (melhor_cpm.cpm_equilibrio or -1, -melhor_cpm.milhas):
@@ -194,12 +196,12 @@ def vereditos_milhas(opcoes: list[Opcao], milheiro: Milheiro) -> list[VereditoPr
 
 
 def agrupar_iguais(ordenadas: list[CustoCombinacao]) -> list[CustoCombinacao]:
-    """Junta combinações com mesma estratégia, cias e custo (só mudam datas/voos): fica a primeira,
-    com as outras datas em `datas_alternativas`. Evita um top 5 com a mesma opção repetida."""
+    """Merge combinations with the same strategy, airlines and cost (only dates/flights differ): keep the first,
+    with the other dates in `datas_alternativas`. Avoids a top 5 with the same option repeated."""
     vistos: dict[tuple, CustoCombinacao] = {}
     out = []
     for c in ordenadas:
-        chave = (c.descricao(), tuple(c.cias), c.custo_brl)
+        chave = (c.descricao(), tuple(c.cias), c.custo)
         if chave in vistos:
             primeira = vistos[chave]
             par = (c.data_ida, c.data_volta)
@@ -225,7 +227,7 @@ def analisar(
     avaliadas: list[CustoCombinacao] = []
     for combo in gerar_combinacoes(podadas, pedido):
         c = custo_combinacao(combo, perfil, milheiro, pedido.passageiros, hoje)
-        if c.custo_brl is None:
+        if c.custo is None:
             avisos.extend(c.avisos)
             continue
         avaliadas.append(c)
@@ -242,8 +244,8 @@ def analisar(
     principais, tambem = [], []
     for c in agrupar_iguais(avaliadas):
         if referencia is not None and c.trabalhosa:
-            economia = referencia.custo_brl - c.custo_brl
-            if economia < perfil.valor_minimo_economia_brl:
+            economia = referencia.custo - c.custo
+            if economia < perfil.valor_minimo_economia:
                 tambem.append(c)
                 continue
         principais.append(c)

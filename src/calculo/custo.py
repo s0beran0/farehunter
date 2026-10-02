@@ -1,14 +1,14 @@
-"""Custo efetivo em BRL de uma combinação de opções (SPEC §5.1).
+"""Effective cost (in the search currency) of a combination of options (SPEC §5.1).
 
-Regras:
-- dinheiro:          preço × passageiros (+ bagagem por trecho, se o perfil pedir e a tarifa não incluir)
-- milhas:            as milhas de cada programa são somadas na combinação e financiadas nesta ordem:
-                       1. saldo do usuário, valorado a `cpm_valor_uso` (custo de oportunidade)
-                       2. a fonte mais barata por milha entre: compra (cpm_compra_atual, respeitando
-                          mínimo e múltiplo de compra) e transferência de pontos (cpm dos pontos de origem,
-                          proporção e bônus vigente), limitada ao saldo de pontos
-                     + taxas × passageiros
-- aeroporto alt.:    + custo_deslocamento_brl × passageiros para cada perna que sai/chega num aeroporto alternativo
+Rules:
+- cash:              fare × passengers (+ bag fee per leg, if the profile asks for it and the fare has none)
+- miles:             each program's miles are summed across the combination and funded in this order:
+                       1. the user's balance, valued at `cpm_valor_uso` (opportunity cost)
+                       2. the cheapest source per mile among: buying (cpm_compra_atual, honouring the
+                          minimum and step) and transferring points (source points CPM, ratio and current
+                          bonus), capped by the points balance
+                     + taxes × passengers
+- alt. airport:      + custo_deslocamento × passengers for each leg leaving/arriving at an alternative airport
 """
 
 from __future__ import annotations
@@ -21,7 +21,17 @@ from i18n import t
 from infra.config import Milheiro, Perfil
 from normalizacao.schema import Opcao
 
-NOMES_PROGRAMA = {"smiles": "Smiles", "latam_pass": "LATAM Pass", "azul": "Azul Fidelidade"}
+class _NomesProgramas:
+    """dict-like view of program display names, backed by the registry (config/programas.yaml)."""
+
+    def get(self, pid, padrao=None):
+        from infra.programas import carregar
+
+        p = carregar().programa(pid) if pid else None
+        return p.nome if p else (padrao if padrao is not None else pid)
+
+
+NOMES_PROGRAMA = _NomesProgramas()
 
 
 @dataclass
@@ -30,7 +40,7 @@ class Transferido:
     pontos: int
     milhas: int
     bonus_pct: float
-    custo_brl: float
+    custo: float
 
 
 @dataclass
@@ -38,11 +48,11 @@ class Financiamento:
     programa: str
     milhas_necessarias: int
     milhas_do_saldo: int = 0
-    custo_saldo_brl: float = 0.0
+    custo_saldo: float = 0.0
     milhas_compradas: int = 0
-    custo_compra_brl: float = 0.0
+    custo_compra: float = 0.0
     transferencias: list[Transferido] = field(default_factory=list)
-    custo_brl: float | None = 0.0
+    custo: float | None = 0.0
     avisos: list[str] = field(default_factory=list)
 
     @property
@@ -71,7 +81,7 @@ def financiar_milhas(
     saldo_disponivel: int | None = None,
     pontos_disponiveis: dict[str, int] | None = None,
 ) -> Financiamento:
-    """Decide como pagar `milhas_necessarias` de um programa. `pontos_disponiveis` é mutado (pool compartilhado)."""
+    """Decide how to pay `milhas_necessarias` of a program. `pontos_disponiveis` is mutated (shared pool)."""
     fin = Financiamento(programa=programa, milhas_necessarias=milhas_necessarias)
     cpm = milheiro.programas.get(programa)
     if saldo_disponivel is None:
@@ -85,13 +95,13 @@ def financiar_milhas(
         valor_uso = cpm.cpm_uso_efetivo if cpm else None
         if valor_uso is None:
             fin.avisos.append(t("aviso.sem_valor_saldo", programa=NOMES_PROGRAMA.get(programa, programa)))
-            fin.custo_brl = None
+            fin.custo = None
             return fin
         fin.milhas_do_saldo = usar_saldo
-        fin.custo_saldo_brl = usar_saldo / 1000 * valor_uso
+        fin.custo_saldo = usar_saldo / 1000 * valor_uso
     restante = milhas_necessarias - usar_saldo
 
-    # Fontes para o restante, ordenadas por custo por milha.
+    # Sources for the remainder, sorted by cost per mile.
     fontes: list[tuple[float, str, object]] = []
     if cpm and cpm.cpm_compra_atual is not None:
         fontes.append((cpm.cpm_compra_atual / 1000, "compra", None))
@@ -113,7 +123,7 @@ def financiar_milhas(
         if tipo == "compra":
             qtd = _arredondar_compra(restante, cpm.compra_minima, cpm.compra_passo)
             fin.milhas_compradas = qtd
-            fin.custo_compra_brl = qtd / 1000 * cpm.cpm_compra_atual
+            fin.custo_compra = qtd / 1000 * cpm.cpm_compra_atual
             restante = 0
         else:
             bonus = tr.bonus_vigente(hoje)
@@ -122,13 +132,13 @@ def financiar_milhas(
             usar = min(pontos_necessarios, pontos[tr.origem])
             if usar < tr.minimo:
                 if pontos[tr.origem] < tr.minimo:
-                    continue  # saldo de pontos abaixo do mínimo de transferência
-                usar = tr.minimo  # transfere o mínimo; a sobra de milhas não é contada como economia
+                    continue  # points balance below the transfer minimum
+                usar = tr.minimo  # transfer the minimum; leftover miles are not counted as savings
                 if cpm and cpm.cpm_compra_atual is not None:
                     custo_transf = usar / 1000 * milheiro.pontos[tr.origem].cpm_uso_efetivo
                     qtd = _arredondar_compra(restante, cpm.compra_minima, cpm.compra_passo)
                     if qtd / 1000 * cpm.cpm_compra_atual <= custo_transf:
-                        continue  # por causa do mínimo, comprar o que falta sai mais barato
+                        continue  # because of the minimum, buying the remainder is cheaper
             milhas_obtidas = min(restante, math.floor(usar * milhas_por_ponto + 1e-9))
             custo = usar / 1000 * milheiro.pontos[tr.origem].cpm_uso_efetivo
             pontos[tr.origem] -= usar
@@ -137,10 +147,10 @@ def financiar_milhas(
 
     if restante > 0:
         fin.avisos.append(t("aviso.faltam_milhas", programa=NOMES_PROGRAMA.get(programa, programa), milhas=restante))
-        fin.custo_brl = None
+        fin.custo = None
         return fin
 
-    fin.custo_brl = fin.custo_saldo_brl + fin.custo_compra_brl + sum(tr.custo_brl for tr in fin.transferencias)
+    fin.custo = fin.custo_saldo + fin.custo_compra + sum(tr.custo for tr in fin.transferencias)
     return fin
 
 
@@ -148,12 +158,12 @@ def financiar_milhas(
 class CustoCombinacao:
     opcoes: list[Opcao]
     passageiros: int
-    custo_brl: float | None
-    custo_dinheiro_brl: float = 0.0
-    custo_milhas_brl: float = 0.0
-    taxas_brl: float = 0.0
-    bagagem_brl: float = 0.0
-    deslocamento_brl: float = 0.0
+    custo: float | None
+    custo_dinheiro: float = 0.0
+    custo_milhas: float = 0.0
+    taxas: float = 0.0
+    bagagem: float = 0.0
+    deslocamento: float = 0.0
     financiamentos: list[Financiamento] = field(default_factory=list)
     estrategias: set[str] = field(default_factory=set)
     riscos: list[str] = field(default_factory=list)
@@ -218,7 +228,7 @@ def custo_combinacao(
     passageiros: int,
     hoje: date,
 ) -> CustoCombinacao:
-    res = CustoCombinacao(opcoes=opcoes, passageiros=passageiros, custo_brl=None)
+    res = CustoCombinacao(opcoes=opcoes, passageiros=passageiros, custo=None)
     n = passageiros
 
     milhas_por_programa: dict[str, int] = {}
@@ -227,11 +237,11 @@ def custo_combinacao(
             res.avisos.append(t("aviso.assentos", id=o.id, assentos=o.assentos_disponiveis, pax=n))
             return res
         if o.tipo == "dinheiro":
-            res.custo_dinheiro_brl += (o.preco_brl or 0) * n
+            res.custo_dinheiro += (o.preco or 0) * n
             res.estrategias.add("dinheiro")
         else:
             milhas_por_programa[o.programa] = milhas_por_programa.get(o.programa, 0) + (o.milhas or 0) * n
-            res.taxas_brl += o.taxas_brl * n
+            res.taxas += o.taxas * n
             if not o.confirmado_ao_vivo:
                 res.riscos.append(t("risco.cache", programa=NOMES_PROGRAMA.get(o.programa, o.programa)))
             prog = perfil.programas.get(o.programa)
@@ -240,11 +250,11 @@ def custo_combinacao(
 
         for p in o.pernas:
             if perfil.bagagem_despachada and not o.bagagem_inclusa:
-                res.bagagem_brl += perfil.custo_bagagem(p.cia) * n
+                res.bagagem += perfil.custo_bagagem(p.cia) * n
             for iata in (p.origem, p.destino):
                 alt = perfil.alternativo(iata)
                 if alt:
-                    res.deslocamento_brl += alt.custo_deslocamento_brl * n
+                    res.deslocamento += alt.custo_deslocamento * n
                     res.estrategias.add("aeroporto_alternativo")
             if any(e < perfil.conexao_curta_min for e in p.escalas_min):
                 res.riscos.append(t("risco.conexao_curta", minutos=min(p.escalas_min), origem=p.origem, destino=p.destino))
@@ -254,9 +264,9 @@ def custo_combinacao(
         fin = financiar_milhas(programa, milhas, perfil, milheiro, hoje, pontos_disponiveis=pontos_pool)
         res.financiamentos.append(fin)
         res.avisos.extend(fin.avisos)
-        if fin.custo_brl is None:
+        if fin.custo is None:
             return res
-        res.custo_milhas_brl += fin.custo_brl
+        res.custo_milhas += fin.custo
         res.estrategias |= fin.estrategias
 
     if len(opcoes) > 1:
@@ -265,14 +275,14 @@ def custo_combinacao(
             res.riscos.append(t("risco.bilhetes_separados"))
 
     res.riscos = list(dict.fromkeys(res.riscos))
-    res.custo_brl = round(
-        res.custo_dinheiro_brl + res.custo_milhas_brl + res.taxas_brl + res.bagagem_brl + res.deslocamento_brl, 2
+    res.custo = round(
+        res.custo_dinheiro + res.custo_milhas + res.taxas + res.bagagem + res.deslocamento, 2
     )
     return res
 
 
-def cpm_equilibrio(preco_dinheiro_brl: float, taxas_brl: float, milhas: int) -> float | None:
-    """CPM em que pagar com milhas empata com pagar em dinheiro: (tarifa - taxas) / milhas × 1000."""
+def cpm_equilibrio(preco_dinheiro: float, taxas: float, milhas: int) -> float | None:
+    """CPM at which paying with miles breaks even with paying cash: (fare - taxes) / miles × 1000."""
     if not milhas:
         return None
-    return round((preco_dinheiro_brl - taxas_brl) / milhas * 1000, 2)
+    return round((preco_dinheiro - taxas) / milhas * 1000, 2)

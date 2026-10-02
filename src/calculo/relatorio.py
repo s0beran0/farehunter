@@ -1,4 +1,4 @@
-"""Relatório markdown determinístico (SPEC §7.2), no idioma definido em i18n. Os números vêm daqui."""
+"""Deterministic markdown report (SPEC §7.2), in the language set in i18n. The numbers come from here."""
 
 from __future__ import annotations
 
@@ -27,25 +27,25 @@ def _links(c: CustoCombinacao) -> str:
 
 def _detalhe_custo(c: CustoCombinacao) -> str:
     partes = []
-    if c.custo_dinheiro_brl:
-        partes.append(t("det.tarifas", v=brl(c.custo_dinheiro_brl)))
+    if c.custo_dinheiro:
+        partes.append(t("det.tarifas", v=brl(c.custo_dinheiro)))
     for f in c.financiamentos:
         sub = []
         if f.milhas_do_saldo:
             sub.append(t("det.do_saldo", n=mil(f.milhas_do_saldo)))
         if f.milhas_compradas:
-            sub.append(t("det.compradas", n=mil(f.milhas_compradas), v=brl(f.custo_compra_brl)))
+            sub.append(t("det.compradas", n=mil(f.milhas_compradas), v=brl(f.custo_compra)))
         for tr in f.transferencias:
             bonus = f" +{tr.bonus_pct:.0f}%" if tr.bonus_pct else ""
-            sub.append(t("det.pontos", n=mil(tr.pontos), origem=tr.origem, bonus=bonus, v=brl(tr.custo_brl)))
+            sub.append(t("det.pontos", n=mil(tr.pontos), origem=tr.origem, bonus=bonus, v=brl(tr.custo)))
         partes.append(t("det.milhas", n=mil(f.milhas_necessarias), programa=NOMES_PROGRAMA.get(f.programa, f.programa),
                         partes=", ".join(sub)))
-    if c.taxas_brl:
-        partes.append(t("det.taxas", v=brl(c.taxas_brl)))
-    if c.bagagem_brl:
-        partes.append(t("det.bagagem", v=brl(c.bagagem_brl)))
-    if c.deslocamento_brl:
-        partes.append(t("det.deslocamento", v=brl(c.deslocamento_brl)))
+    if c.taxas:
+        partes.append(t("det.taxas", v=brl(c.taxas)))
+    if c.bagagem:
+        partes.append(t("det.bagagem", v=brl(c.bagagem)))
+    if c.deslocamento:
+        partes.append(t("det.deslocamento", v=brl(c.deslocamento)))
     return "; ".join(partes)
 
 
@@ -70,7 +70,7 @@ def _datas(ida: str, volta: str | None) -> str:
 def _linha(i: int | str, c: CustoCombinacao, r: Resultado) -> str:
     eco = r.economia(c)
     eco_txt = t("rel.referencia") if c is r.referencia else (brl(eco) if eco is not None else "—")
-    return (f"| {i} | {c.descricao()} | {_datas(c.data_ida, c.data_volta)} | {_cias(c)} | **{brl(c.custo_brl)}** "
+    return (f"| {i} | {c.descricao()} | {_datas(c.data_ida, c.data_volta)} | {_cias(c)} | **{brl(c.custo)}** "
             f"| {eco_txt} | {_observacoes(c)} | {_links(c)} |")
 
 
@@ -79,18 +79,18 @@ def _matriz(r: Resultado) -> list[str]:
         datas = sorted({k[0] for k in r.matriz})
         if not datas:
             return [t("rel.grade_vazia")]
-        melhor = min(r.matriz.values(), key=lambda c: c.custo_brl)
+        melhor = min(r.matriz.values(), key=lambda c: c.custo)
         linhas = [t("rel.grade_cabecalho"), "|---|---|"]
         for d in datas:
             c = r.matriz[(d, None)]
-            v = brl(c.custo_brl)
+            v = brl(c.custo)
             linhas.append(f"| {_data_curta(d)} | {'**' + v + '** ⭐' if c is melhor else v} |")
         return linhas
     idas = sorted({k[0] for k in r.matriz})
     voltas = sorted({k[1] for k in r.matriz if k[1]})
     if not idas or not voltas:
         return [t("rel.matriz_vazia")]
-    melhor = min(r.matriz.values(), key=lambda c: c.custo_brl)
+    melhor = min(r.matriz.values(), key=lambda c: c.custo)
     linhas = [f"| {t('rel.matriz_canto')} | " + " | ".join(_data_curta(v) for v in voltas) + " |",
               "|---" * (len(voltas) + 1) + "|"]
     for d in idas:
@@ -100,9 +100,9 @@ def _matriz(r: Resultado) -> list[str]:
             if c is None:
                 celulas.append("·")
             elif c is melhor:
-                celulas.append(f"**{brl(c.custo_brl)}** ⭐")
+                celulas.append(f"**{brl(c.custo)}** ⭐")
             else:
-                celulas.append(brl(c.custo_brl))
+                celulas.append(brl(c.custo))
         linhas.append(f"| {_data_curta(d)} | " + " | ".join(celulas) + " |")
     linhas.append("")
     linhas.append(t("rel.matriz_legenda"))
@@ -130,11 +130,11 @@ def gerar_relatorio(
     else:
         eco = r.economia(melhor)
         frase = t("rel.mais_barato", descricao=melhor.descricao(), datas=_datas(melhor.data_ida, melhor.data_volta),
-                  cias=_cias(melhor), custo=brl(melhor.custo_brl))
+                  cias=_cias(melhor), custo=brl(melhor.custo))
         if melhor is r.referencia:
             frase += t("rel.eh_referencia")
         elif eco is not None:
-            frase += t("rel.economia", economia=brl(eco), referencia=brl(r.referencia.custo_brl))
+            frase += t("rel.economia", economia=brl(eco), referencia=brl(r.referencia.custo))
         else:
             frase += "."
         linhas.append(frase)
@@ -172,7 +172,7 @@ def gerar_relatorio(
         o = v.melhor_opcao
         linhas.append(t(
             "rel.resgate", programa=NOMES_PROGRAMA.get(v.programa, v.programa), milhas=mil(v.milhas),
-            taxas=brl(v.taxas_brl), data=_data_curta(o.data_ida), rota=f"{o.pernas[0].origem}→{o.pernas[-1].destino}",
+            taxas=brl(v.taxas), data=_data_curta(o.data_ida), rota=f"{o.pernas[0].origem}→{o.pernas[-1].destino}",
             status=t("rel.status_vivo") if o.confirmado_ao_vivo else t("rel.status_cache"),
             preco=brl(v.preco_dinheiro_comparado), base=v.base_comparacao,
         ))

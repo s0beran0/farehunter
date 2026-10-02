@@ -23,7 +23,7 @@ def test_normalizacao_de_idioma():
     assert i18n.normalizar("pt-BR") == "pt"
     assert i18n.normalizar("es_AR") == "es"
     assert i18n.normalizar("EN-us") == "en"
-    assert i18n.normalizar("fr") == "en"  # sem tradução: inglês
+    assert i18n.normalizar("fr") == "en"  # no translation: English
     assert i18n.normalizar(None) == "pt"
 
 

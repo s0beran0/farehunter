@@ -19,7 +19,7 @@ def test_cache_respeita_ttl(tmp_path):
     c.set("seats_aero", k, [1])
     t[0] += 5 * 3600
     assert c.get("seats_aero", k) == [1]  # TTL seats = 6h
-    assert c.limpar_expirados() == 1  # o do kiwi
+    assert c.limpar_expirados() == 1  # the kiwi one
 
 
 def test_limite_diario_e_por_execucao(tmp_path):
@@ -30,7 +30,7 @@ def test_limite_diario_e_por_execucao(tmp_path):
     with pytest.raises(LimiteExcedido):
         c.consumir("seats_aero_chamadas_dia")
     dia[0] = date(2026, 10, 3)
-    assert c.consumir("seats_aero_chamadas_dia") == 1  # zera no dia seguinte
+    assert c.consumir("seats_aero_chamadas_dia") == 1  # resets the next day
     c.consumir("playwright_paginas_por_execucao", execucao="run1")
     with pytest.raises(LimiteExcedido):
         c.consumir("playwright_paginas_por_execucao", execucao="run1")
@@ -38,7 +38,7 @@ def test_limite_diario_e_por_execucao(tmp_path):
 
 
 def _op(preco, ts):
-    return Opcao(fonte="kiwi", tipo="dinheiro", preco_brl=preco, coletado_em=ts,
+    return Opcao(fonte="kiwi", tipo="dinheiro", preco=preco, coletado_em=ts,
                  pernas=[Perna("GRU", "REC", "2026-12-10", cia="G3", voos=["G3 1"])])
 
 
@@ -79,9 +79,9 @@ def test_coleta_datas_cai_no_sweep_quando_grade_falha(tmp_path, monkeypatch):
 
     chamadas = []
 
-    def busca(origem, destino, data, volta, pax, cab):
+    def busca(origem, destino, data, volta, pax, cab, **locale):
         chamadas.append(data)
-        return [Opcao(fonte="google_flights", tipo="dinheiro", preco_brl=500,
+        return [Opcao(fonte="google_flights", tipo="dinheiro", preco=500,
                       pernas=[Perna(origem, destino, data, cia="G3", voos=["G3 1"])])]
 
     def kiwi_fora(*a, **k):
@@ -96,3 +96,67 @@ def test_coleta_datas_cai_no_sweep_quando_grade_falha(tmp_path, monkeypatch):
     assert chamadas == ["2026-12-09", "2026-12-10", "2026-12-11"]
     assert st["google_flights"]["ok"] and "sweep" in st["google_flights"]["motivo"]
     assert st["kiwi"]["ok"] is False and "kiwi fora do ar" in st["kiwi"]["motivo"]
+
+
+class _FxFalso:
+    def taxa(self, de, para):
+        return {("USD", "BRL"): 5.0, ("BRL", "BRL"): 1.0, ("GBP", "BRL"): 6.5}[(de.upper(), para.upper())]
+
+    def converter(self, v, de, para):
+        return round(v * self.taxa(de, para), 2)
+
+
+def test_seats_taxes_parsed_and_converted_to_search_currency():
+    from fontes.seats import ler_valor_moeda, normalizar_mcp
+
+    assert ler_valor_moeda("R$62.14 BRL") == (62.14, "BRL")
+    assert ler_valor_moeda("$5.60 USD") == (5.6, "USD")
+    assert ler_valor_moeda("£54.20") == (54.2, "GBP")
+    dados = {"flights": [
+        {"origin": "GRU", "destination": "MIA", "departs_at": "2026-11-20 22:00", "arrives_at": "2026-11-21 06:00",
+         "flights": "AA930", "miles_price": 30000, "mileage_program": "american", "operating_carriers": ["AA"],
+         "taxes": "$5.60 USD", "stops": 0, "minutes_old": 60},
+        {"origin": "GRU", "destination": "MIA", "departs_at": "2026-11-20 22:00", "flights": "XX1",
+         "miles_price": 1000, "mileage_program": "some_new_program", "taxes": "$1 USD"},
+    ]}
+    ops = normalizar_mcp(dados, moeda="BRL", cambio=_FxFalso())
+    assert len(ops) == 1 and ops[0].programa == "american" and ops[0].taxas == 28.0
+
+
+def test_partner_api_record_from_a_foreign_program(tmp_path):
+    import json
+    from pathlib import Path
+
+    from mcp_seats.cliente import normalizar_search
+
+    regs = json.loads((Path(__file__).parent / "fixtures" / "seats_search_american.json").read_text())["data"]
+    ops = normalizar_search(regs, cabine="economy", moeda="BRL", cambio=_FxFalso())
+    assert ops and all(o.programa == "american" for o in ops)
+    assert all(o.taxas >= 0 for o in ops)
+
+
+def test_programs_to_query_include_transfer_partners():
+    from fontes.coleta import programas_para_busca
+
+    progs = programas_para_busca({"programas": {"united": {"tem_conta": True}, "smiles": {"tem_conta": False}},
+                                  "pontos_programas": ["livelo"]})
+    assert progs[0] == "united" and {"smiles", "latam_pass", "azul"} <= set(progs)
+    assert programas_para_busca({}) is None
+
+
+def test_extract_english_promotions_and_regions():
+    from fontes.promos import extrair, regioes_para
+
+    a = extrair("Last day: Chase Ultimate Rewards 30% transfer bonus to Flying Blue")
+    assert a["tipo"] == "transferencia" and a["bonus_pct_max"] == 30 and a["ultimo_dia"]
+    assert {"chase_ur", "flyingblue"} <= set(a["programas"])
+    b = extrair("Buy Avianca LifeMiles with a 145% bonus — 1.35 cents per mile")
+    assert b["tipo"] == "compra" and b["centavos_por_milha"] == 1.35 and "lifemiles" in b["programas"]
+    assert regioes_para("BR") == ["br"] and regioes_para("GB") == ["uk", "us"] and regioes_para("MX") == ["us"]
+
+
+def test_cents_each_format_from_a_real_feed_title():
+    from fontes.promos import extrair
+
+    r = extrair("Buy Alaska Atmos Rewards Points With 100% Bonus (1.88 Cents Each): Worth It?")
+    assert r["centavos_por_milha"] == 1.88 and r["bonus_pct_max"] == 100 and r["programas"] == ["alaska"]

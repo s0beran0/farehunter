@@ -1,6 +1,6 @@
 # Desenvolvimento — FareHunter
 
-Plugin do Claude Code que encontra o jeito mais barato de viajar a partir do Brasil, ou dentro dele (valores em BRL; conversa e relatório em pt/en/es). Ele compara dinheiro, datas próximas, milhas próprias, compra de milhas, transferência de pontos e combinações. Entrada: `/farehunter:search <pedido>`.
+Plugin do Claude Code que encontra o jeito mais barato de viajar saindo de qualquer país, na moeda do usuário (conversa e relatório em pt/en/es; programas do mundo todo em `config/programas.yaml`). Ele compara dinheiro, datas próximas, milhas próprias, compra de milhas, transferência de pontos e combinações. Entrada: `/farehunter:search <pedido>`.
 
 ## Layout do plugin
 ```
@@ -10,7 +10,8 @@ skills/search|profile|miles|setup/SKILL.md   instruções (em inglês; respondem
 agents/*-researcher.md            subagentes (tipo farehunter:<nome>)
 .mcp.json                         kiwi, seats-aero (HTTP) e playwright (npx, perfil em ${CLAUDE_PLUGIN_DATA})
 scripts/install.sh|.ps1           instaladores de um comando, com mensagens em pt/en/es
-config/milheiro.yaml              valor INICIAL; copiado para a pasta de dados no 1º uso
+config/programas.yaml             registro de programas de milhas e pontos (nome, cias, Seats.aero, link, transferências)
+config/milheiro.yaml              CPMs iniciais; mesclados com a tabela do usuário (a do usuário vence por programa)
 src/ + pyproject.toml + uv.lock   motor Python (CLI `farehunter`), chamado via `uv run --project "${CLAUDE_PLUGIN_ROOT}" farehunter ...`
 src/i18n/                         textos do relatório e do motor em pt/en/es (mensagens.py)
 ```
@@ -53,7 +54,7 @@ Comandos úteis: `uv run pytest`, `uv run farehunter --help`, `uv run farehunter
 {"fonte": "playwright_latam", "tipo": "milhas", "programa": "latam_pass", "trecho": "ida",
  "pernas": [{"origem": "GRU", "destino": "REC", "data": "2026-12-10", "partida": "07:00", "chegada": "10:10",
              "cia": "LA", "voos": ["LA 3676"], "conexoes": 0, "duracao_min": 190}],
- "milhas": 12000, "taxas_brl": 35.9, "preco_brl": null, "bagagem_inclusa": false,
+ "milhas": 12000, "taxas": 35.9, "preco": null, "bagagem_inclusa": false,
  "assentos_disponiveis": null, "confirmado_ao_vivo": true, "link": "https://..."}
 ```
 - `tipo` é `dinheiro` ou `milhas`.
@@ -90,7 +91,7 @@ Os adaptadores estão isolados em `src/fontes/`; ver README §"Trocar uma fonte 
 
 - **CPM de equilíbrio** = (tarifa em dinheiro comparável − taxas) ÷ milhas × 1000. Comprar milhas compensa quando ele é maior que `cpm_compra_atual`.
 - **Ranking:** por custo; empates por duração e depois por conexões.
-- **"Também possível":** estratégias trabalhosas (comprar, transferir, aeroporto alternativo) que economizam menos de `valor_minimo_economia_brl` saem do top e vão para essa seção.
+- **"Também possível":** estratégias trabalhosas (comprar, transferir, aeroporto alternativo) que economizam menos de `valor_minimo_economia` saem do top e vão para essa seção.
 
 ## Limitações conhecidas
 

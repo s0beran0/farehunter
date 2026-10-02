@@ -2,7 +2,7 @@
 
 **English** · [Português](README.pt-BR.md) · [Español](README.es.md)
 
-Describe your trip in plain words, in English, Portuguese or Spanish — for example "Porto Alegre to Recife on Nov 20, back Nov 27, 2 adults". FareHunter finds the **cheapest** way to do it. It compares:
+Describe your trip in plain words — "New York to Lisbon on Nov 20, back Nov 27, 2 adults" or "Porto Alegre para Recife dia 20/11" — and FareHunter finds the **cheapest** way to do it. It compares:
 - cash fares;
 - nearby dates;
 - miles you already have;
@@ -10,88 +10,92 @@ Describe your trip in plain words, in English, Portuguese or Spanish — for exa
 - transferring card points;
 - mixes (cash one way, miles the other).
 
-You get a ranking in BRL with the links to book yourself.
+You get a ranking in **your currency**, with links to book yourself.
 
-- Focused on trips **from or within Brazil** (Smiles, LATAM Pass, Azul Fidelidade, Livelo, Esfera; prices in BRL).
-- **Runs on your computer**: in the Claude Desktop app (**Code** tab) on macOS and Windows, or in Claude Code in the terminal on Linux. Nothing is hosted.
+- **Works from any country, in any currency.** It knows 30+ airline programs: United, American, Delta, Alaska, Aeroplan, Flying Blue, British Airways/Iberia/Qatar Avios, Miles & More, Turkish, Emirates, Singapore, Cathay, Qantas, LifeMiles, Copa, Aeroméxico, Smiles, LATAM Pass, Azul…
+- **It also knows card points:** Amex, Chase, Citi, Capital One, Bilt, Livelo, Esfera… and their transfer partners.
+- **Talks to you in your language.** The report comes in English, Portuguese or Spanish; Claude translates any other language.
+- **Runs on your computer:** the Claude Desktop app (**Code** tab) on macOS and Windows, or Claude Code in the terminal on Linux. Nothing is hosted.
 - **Everyone uses their own keys and accounts.** It **never buys, books or asks for passwords**.
-- Talks to you in your language. The report comes in English, Portuguese or Spanish; Claude translates other languages.
 
-## Install (once, ~5 minutes)
+## Install
 
-**1. Get Claude Desktop** (macOS/Windows): https://claude.ai/download. Sign in (your plan must include Claude Code). On **Linux** there is no Claude Desktop: the installer below offers to install Claude Code for the terminal.
+### Option A — inside Claude Desktop (macOS / Windows, no terminal)
 
-**2. Run the installer.** It checks what is missing and asks before installing anything.
+1. Install **Claude Desktop** from https://claude.ai/download and sign in. Your plan must include Claude Code.
+2. Open the **Code** tab and pick any folder, e.g. `Documents/trips`.
+3. Click the **+** button next to the message box → **Plugins** → **Add plugin**.
+4. In the plugin browser, add the marketplace **`s0beran0/farehunter`** (the GitHub repository).
+5. Find **farehunter** in the list and click **Install**.
+6. In the message box, type **`/farehunter:setup`**. It checks your computer and walks you through the one required tool (**uv**), with the exact link or command for your system.
 
-- **macOS:** open **Terminal** (Cmd+Space, type "Terminal") and paste:
+> **Prefer typing?** Steps 3–5 can be replaced with these two commands in the Code tab's message box:
+> ```
+> /plugin marketplace add s0beran0/farehunter
+> /plugin install farehunter@farehunter-marketplace
+> ```
+
+### Option B — one command in the terminal (macOS / Windows / Linux)
+
+It installs everything that is missing and asks before each item:
+- **uv**, required: runs the cost engine and downloads Python by itself;
+- **Node.js**, optional: only for LATAM Pass and live price checks;
+- **Git**;
+- **Claude Code**, on Linux only (there is no Claude Desktop for Linux);
+- the **plugin** itself.
+
+- **macOS / Linux** (Terminal):
   ```bash
   curl -fsSL https://raw.githubusercontent.com/s0beran0/farehunter/main/scripts/install.sh | bash
   ```
-- **Windows:** open **PowerShell** (Start menu, type "PowerShell") and paste:
+- **Windows** (PowerShell):
   ```powershell
   irm https://raw.githubusercontent.com/s0beran0/farehunter/main/scripts/install.ps1 | iex
   ```
-- **Linux:** open a terminal and paste (the same script as macOS; it also offers to install [Claude Code](https://code.claude.com/docs/en/setup)):
-  ```bash
-  curl -fsSL https://raw.githubusercontent.com/s0beran0/farehunter/main/scripts/install.sh | bash
-  ```
 
-It takes care of:
-- **uv**, required: runs the cost engine and downloads Python by itself;
-- **Node.js**, optional: only for LATAM Pass miles and for live price checks on Smiles;
-- **Git**, on Windows only;
-- the **plugin** itself.
-
-**3. (macOS/Windows) If the installer said it couldn't find the `claude` command**, install the plugin from the app. Open Claude Desktop → **Code** tab → pick any folder (e.g. `Documents/trips`) and type:
-```
-/plugin marketplace add s0beran0/farehunter
-/plugin install farehunter@farehunter-marketplace
-```
-
-**4. Quit and reopen Claude Desktop** and, in the Code tab, type the command below. On **Linux**, open a terminal in any folder, run `claude` (log in the first time) and type it there:
-```
-/farehunter:setup
-```
-It checks everything (internet, uv, Node, keys) and calmly explains whatever is still missing, with links and ready-to-paste commands.
+Then:
+- **macOS / Windows:** quit and reopen Claude Desktop. In the **Code** tab, type `/farehunter:setup`.
+- **Linux:** open a terminal, run `claude` (log in the first time) and type `/farehunter:setup`.
 
 ## Use
 
 | Type | What it does |
 |---|---|
-| `/farehunter:profile` | A quick chat about your airports, how many people travel, bags, which miles and points programs you have, and your language. Done once; change it any time. |
-| `/farehunter:search São Paulo to Recife Nov 20, back Nov 27, 2 adults` | The search. It asks for **today's balances** and shows the ranking. You can also just ask in your own words. |
-| `/farehunter:miles` | Updates what each mile is worth and the active buy/transfer promotions. Shows the change and only saves if you approve. |
+| `/farehunter:profile` | A quick chat about your country, currency, airports, how many people travel, bags, and which miles and points programs you have. Once; change it any time. |
+| `/farehunter:search New York to Lisbon Nov 20, back Nov 27, 2 adults` | The search. It asks for **today's balances** and shows the ranking. You can also just ask in your own words. |
+| `/farehunter:miles` | Updates what each mile/point is worth and the active buy/transfer promotions. Shows the change and only saves if you approve. |
 | `/farehunter:setup` | When something goes wrong, or to check the installation. |
 
 > **Why does it ask for balances every time?** Balances change with every purchase, transfer or expiry. A stored, forgotten number would lead to wrong advice, so a balance only counts for that search.
 
 ## Optional
 
-- **Seats.aero Pro** (US$ 9.99/month): without it, Smiles and Azul miles only show for flights departing within 60 days; with it, any date.
+- **Seats.aero Pro** (US$ 9.99/month): without it, award availability is only available for flights departing within 60 days; with it, any date.
   - You save the key yourself, in your own terminal, so it never goes through the chat. `/farehunter:setup` shows the command.
   - Check that the "API" tab appears for your account before subscribing.
-- **LATAM Pass:** LATAM's site only shows miles prices when you are logged in. When needed, a browser window opens and **you** log in there. The session stays in the plugin's browser.
+- **LATAM Pass:** LATAM's site only shows miles prices when you are logged in. When needed, a browser window opens and **you** log in there.
 
 ## Your data
 
-It lives in `~/.farehunter/` (on Windows, `C:\Users\<you>\.farehunter\`; on Linux, `/home/<you>/.farehunter/`):
+It lives in `~/.farehunter/` (Windows: `C:\Users\<you>\.farehunter\`):
 - profile;
 - miles values;
 - price history;
 - keys (`.env`, only on your computer).
 
-Updating or reinstalling the plugin never deletes it. To see the exact path, ask "where is my data?".
+Updating or reinstalling the plugin never deletes it. Ask "where is my data?" to see the exact path.
 
 ## Update
-In Claude Desktop (Code tab), type `/plugin`, open **farehunter** and choose update. From a terminal: `claude plugin update farehunter@farehunter-marketplace`.
+In Claude Desktop (Code tab), click **+** → **Plugins** → **Manage plugins**, or type `/plugin`. From a terminal: `claude plugin update farehunter@farehunter-marketplace`.
 
 ## Limitations
 
-- Prices change until ticketing. Miles marked as **cached** must be checked on the program's site.
-- Google Flights has no official API. If it fails, FareHunter says so and continues with the other sources.
-- Miles prices can be lower for club members or elite tiers (e.g. Clube Smiles, ~8%). The report warns about it.
-- Mileage brokers (123milhas, MaxMilhas) are left out on purpose: legal risk, and the ticket can be cancelled.
+- Prices change until ticketing. Award seats marked as **cached** must be checked on the program's site.
+- Google Flights has no official API. If it fails, FareHunter says so and continues with Kiwi and the other sources.
+- Award prices can be lower for club members or elite tiers. The report warns about it.
+- Deep links that open the search with your route and dates already filled in exist for Smiles, LATAM and Azul. For other programs, the link opens the program's award-search page.
+- Mileage brokers are left out on purpose: legal risk, and the ticket can be cancelled.
 
 ---
 
-For developers: [docs/desenvolvimento.md](docs/desenvolvimento.md) (Portuguese) · source research: [docs/research.md](docs/research.md) · decisions: [docs/decisoes.md](docs/decisoes.md). To add a language, see "Idiomas" in the developer doc.
+For developers: [docs/desenvolvimento.md](docs/desenvolvimento.md) · research: [docs/research.md](docs/research.md) · decisions: [docs/decisoes.md](docs/decisoes.md) · add a program: `config/programas.yaml` · add a language: `src/i18n/mensagens.py`.

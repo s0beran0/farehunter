@@ -299,3 +299,104 @@ Resgates econômicos Smiles em voos GOL e resgates domésticos LATAM **não** in
 4. Navegador só para leitura, no máximo 15 páginas por execução, sem paralelismo, 5 s entre páginas. Login só manual, num perfil persistente. Se aparecer 403 ou CAPTCHA, parar; sem proxies.
 5. Promoções lidas no máximo 1×/dia (cache de 24h).
 6. Cada número com fonte e data.
+
+---
+
+## 10. International data (research 2026-10-02)
+
+Seed values for the international programs in `config/programas.yaml` and `config/milheiro.yaml`.
+
+### 10.1 Value per point (US cents)
+**Sources:**
+- **TPG:** [The Points Guy monthly valuations](https://thepointsguy.com/loyalty-programs/monthly-valuations/), October 2026 (published 2026-10-01).
+- **UP:** [Upgraded Points](https://upgradedpoints.com/travel/points-and-miles-valuations/), September 2026 (2026-09-17).
+- **FM:** [Frequent Miler reasonable redemption values](https://frequentmiler.com/reasonable-redemption-values-rrvs/), 2026-09-02.
+- **NW:** [NerdWallet](https://www.nerdwallet.com/article/travel/airline-miles-and-hotel-points-valuations), 2026-10-02.
+
+**`cpm_valor_uso`** = the **median** of the available sources × 10, giving USD per 1,000. The median is more robust than any single blog. When there is only one source, the value is marked as uncertain.
+
+| id | TPG | UP | FM | NW | median → USD/1,000 |
+|---|---|---|---|---|---|
+| united | 1.2 | 1.2 | 1.3 | 1.2 | 12.00 |
+| american | 1.45 | 1.4 | 1.4 | 1.7 | 14.25 |
+| delta | 1.2 | 1.2 | 1.1 | 1.2 | 12.00 |
+| alaska | 1.55 | 1.6 | 1.5 | 1.4 | 15.25 |
+| aeroplan | 1.5 | 1.5 | 1.4 | 1.1 | 14.50 |
+| flyingblue | 1.4 | 1.3 | 1.3 | 1.0 | 13.00 |
+| british | 1.4 | 1.25 | 1.1 | 1.2 | 12.25 |
+| iberia / qatar | 1.4 | 1.25 | – | – | 13.25 |
+| emirates | 1.2 | 1.1 | – | 1.0 | 11.00 |
+| etihad | 1.2 | 1.4 | – | – | 13.00 |
+| singapore | 1.3 | 1.35 | – | – | 13.25 |
+| asiamiles | 1.3 | 1.3 | 1.1 | – | 13.00 |
+| turkish | 1.1 | 1.3 | – | 0.8 | 11.00 |
+| lifemiles | 1.6 | 1.4 | 1.3 | 1.3 | 13.50 |
+| virginatlantic | 1.5 | 1.4 | 1.5 | 0.8 | 14.50 |
+| qantas | 1.25 | – | 1.3 | – | 12.75 |
+| lufthansa | – | 1.3 | 1.3 | – | 13.00 |
+| aeromexico | 0.8 | – | – | – | 8.00 (1 source) |
+| finnair | 1.4 | – | – | – | 14.00 (1 source) |
+| jal | – | 1.3 | – | – | 13.00 (1 source) |
+| amex_mr | 2.0 | 2.2 | 1.5 | – | 20.00 |
+| chase_ur | 2.05 | 2.0 | 1.5 | – | 20.00 |
+| citi_ty | 1.9 | 1.6 | 1.5 | – | 16.00 |
+| capitalone | 1.85 | 1.8 | 1.45 | – | 18.00 |
+| bilt | 2.2 | 2.0 | 1.55 | – | 20.00 |
+| wellsfargo | 1.75 | 1.5 | 1.4 | – | 15.00 |
+
+No source values copa, velocity, eurobonus or eva; those are left empty.
+
+### 10.2 Cost of buying miles
+**Sources:**
+- [Upgraded Points buy-promotion tracker](https://upgradedpoints.com/news/current-point-purchase-promotions/), 2026-10-01.
+- [The Gate, "miles on sale"](https://thegatewithbriancohen.com/miles-and-points-on-sale-october-2-2026/), 2026-10-02.
+- One Mile at a Time and AwardWallet pages for each program; their URLs and dates are in the comments of `milheiro.yaml`.
+
+**`cpm_compra_atual`:**
+- Normally the typical recurring promotional price, because promotions come back every few weeks.
+- When a promotion is only realistic for huge purchases (Turkish: 250k+ miles), the base price is used instead.
+- AUD prices were converted at 1 USD = 1.4411 AUD (Frankfurter, 2026-10-02).
+- Programs with no published purchase price are left empty.
+
+### 10.3 Transfer partners
+**Sources:**
+- [TPG transfer partners guide](https://thepointsguy.com/credit-cards/credit-card-transfer-partners/), 2026-09-01.
+- [Citi → JAL](https://thepointsguy.com/news/citi-japan-airlines-transfer-partner/), 2026-09-21.
+- [Prince of Travel — Amex MR Canada](https://princeoftravel.com/points-programs/american-express-membership-rewards-canada/), 2026-09-24.
+- [Head for Points — Amex MR UK](https://www.headforpoints.com/2026/08/24/best-use-of-amex-membership-rewards-points/), 2026-08-24.
+- [Point Hacks — Amex MR Australia](https://www.pointhacks.com.au/american-express/amex-membership-rewards-transfer-partner-pros-cons/), 2026-06-22.
+
+**Uncertain:**
+- Minimum transfers of 1,000 for Amex, Chase, Citi and Capital One come from a search summary.
+- Bilt's minimum is 2,000 for Blue members and 1,000 for Silver and above.
+- Citi transfers 1:1 only on Strata Elite, Strata Premier and Prestige; other Citi cards transfer at 1:0.7.
+
+### 10.4 International promotion feeds (all returned items dated 2026-10-02)
+**Feeds:**
+- thepointsguy.com/feed
+- frequentmiler.com/feed
+- onemileatatime.com/feed
+- viewfromthewing.com/feed
+- headforpoints.com/feed (UK)
+- pointhacks.com.au/feed (AU)
+- princeoftravel.com/feed (CA)
+- upgradedpoints.com/feed
+
+Frequent Miler and View from the Wing return 403 to a browser User-Agent and 200 to a feed-reader UA.
+
+**Transfer-bonus trackers:**
+- https://frequentmiler.com/current-point-transfer-bonuses/
+- https://thepointsguy.com/loyalty-programs/current-transfer-bonuses/
+
+### 10.5 Exchange rates
+| API | Endpoint | Coverage |
+|---|---|---|
+| Frankfurter (ECB) | `https://api.frankfurter.dev/v1/latest?from=USD` (`.app` redirects to `.dev`) | No ARS, CLP, COP |
+| open.er-api.com | `https://open.er-api.com/v6/latest/USD` | Wider, includes ARS, CLP, COP |
+
+Both are free, need no key and were tested 2026-10-02. They are cached for 24h.
+
+### 10.6 Award search pages
+- **Opened (HTTP 200):** delta, aeroplan, emirates, asiamiles, aeromexico, qantas, velocity, singapore (home page), virginatlantic (Flying Club page).
+- **Domain confirmed only:** american, alaska, iberia, lifemiles, copa, lufthansa, eurobonus, finnair, jal, eva, united, flyingblue, british, qatar, etihad, turkish. These sites return 403 or time out for scripts.
+- **Not verified:** ethiopian, saudia.

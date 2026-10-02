@@ -1,12 +1,12 @@
-"""CLI `farehunter`: o que o orquestrador e os subagentes chamam via `uv run --project <plugin> farehunter ...`.
+"""CLI `farehunter`: what the orchestrator and subagents call via `uv run --project <plugin> farehunter ...`.
 
-Fluxo de uma execução:
+Flow of a search run:
   farehunter run novo --origem GRU --destino REC --ida 2026-12-10 --volta 2026-12-17 [--flex 3] [--pax 2]
-      → cria data/runs/<id>/pedido.json e imprime o diretório
-  farehunter run registrar --run <dir> --fonte kiwi --arquivo opcoes.json     (opções já normalizadas)
+      → creates runs/<id>/pedido.json and prints the directory
+  farehunter run registrar --run <dir> --fonte kiwi --arquivo opcoes.json     (already normalized options)
   farehunter run falha     --run <dir> --fonte google_flights --motivo "..."
   farehunter analisar --run <dir>
-      → relatorio.md, ranking.json e linhas novas em data/historico.csv
+      → relatorio.md, ranking.json and new rows in historico.csv
 """
 
 from __future__ import annotations
@@ -43,14 +43,14 @@ def _ler_json(caminho: str | Path):
 # --- run ---------------------------------------------------------------------------------------
 
 def _parse_saldos(itens: list[str]) -> dict[str, int] | None:
-    """['smiles=45000', 'livelo=12.000', 'azul=0'] → dict. None se algum item for inválido."""
+    """['smiles=45000', 'livelo=12.000', 'azul=0'] → dict. None if any item is invalid."""
     saldos = {}
     for item in itens:
         nome, _, valor = item.partition("=")
         try:
             saldos[nome.strip().lower()] = int(valor.replace(".", "").replace("_", "").strip())
         except ValueError:
-            print(f"erro: saldo inválido '{item}' (use programa=numero, ex. smiles=45000)", file=sys.stderr)
+            print(f"error: invalid balance '{item}' (use program=number, e.g. smiles=45000)", file=sys.stderr)
             return None
     return saldos
 
@@ -78,10 +78,13 @@ def cmd_run_novo(a) -> int:
         "passageiros": a.pax or perfil.passageiros_padrao,
         "cabine": a.cabine,
     }
-    Pedido(**pedido)  # valida
+    Pedido(**pedido)  # validates
     from infra import perfil_io
 
-    pedido["idioma"] = i18n.normalizar(a.idioma or perfil_io.carregar_bruto().get("idioma"))
+    bruto = perfil_io.carregar_bruto()
+    pedido["idioma"] = i18n.normalizar(a.idioma or bruto.get("idioma"))
+    pedido["moeda"] = (a.moeda or bruto.get("moeda") or "BRL").upper()
+    pedido["pais"] = (a.pais or bruto.get("pais") or "BR").upper()
     saldos = _parse_saldos(a.saldo or [])
     if saldos is None:
         return 2
@@ -117,14 +120,14 @@ def cmd_run_falha(a) -> int:
 def cmd_run_opcao(a) -> int:
     achado = runs.buscar_opcao(Path(a.run), a.id)
     if achado is None:
-        print(f"opção {a.id} não encontrada", file=sys.stderr)
+        print(f"option {a.id} not found", file=sys.stderr)
         return 1
     _json_out(achado[1])
     return 0
 
 
 def cmd_run_confirmar(a) -> int:
-    _json_out(runs.confirmar(Path(a.run), a.id, a.via, milhas=a.milhas, taxas_brl=a.taxas, preco_brl=a.preco,
+    _json_out(runs.confirmar(Path(a.run), a.id, a.via, milhas=a.milhas, taxas=a.taxas, preco=a.preco,
                              indisponivel=a.indisponivel, link=a.link, obs=a.obs))
     return 0
 
@@ -162,8 +165,11 @@ def cmd_analisar(a) -> int:
     dados_pedido = _ler_json(run / "pedido.json")
     i18n.definir(dados_pedido.pop("idioma", None))
     pedido = Pedido(**dados_pedido)
+    i18n.definir_moeda(pedido.moeda)
     perfil = carregar_perfil()
-    milheiro = carregar_milheiro()
+    from infra.cambio import padrao as cambio_padrao
+
+    milheiro, avisos_cambio = carregar_milheiro().na_moeda(pedido.moeda, cambio_padrao())
     saldos = runs.ler_saldos(run)
     aviso_saldos = runs.aplicar_saldos(perfil, saldos)
     brutos = []
@@ -175,6 +181,7 @@ def cmd_analisar(a) -> int:
     resultado.avisos.extend(avisos_carga[:5])
     if aviso_saldos:
         resultado.avisos.insert(0, aviso_saldos)
+    resultado.avisos.extend(f"FX: {a}" for a in avisos_cambio)
     st = runs.status(run)
     fontes_ok = [f for f, s in st.items() if s.get("ok")]
     falhas = {f: s.get("motivo") or "sem detalhe" for f, s in st.items() if not s.get("ok")}
@@ -182,7 +189,7 @@ def cmd_analisar(a) -> int:
         if s.get("ok") and s.get("motivo"):
             resultado.avisos.append(f"{f}: {s['motivo']}")
 
-    comparacao = historico.comparar_com_anterior(opcoes) if not a.sem_historico else []
+    comparacao = historico.comparar_com_anterior(opcoes, moeda_atual=pedido.moeda) if not a.sem_historico else []
     texto = gerar_relatorio(resultado, fontes_ok, falhas, top=a.top, milheiro=milheiro, saldos=saldos)
     if comparacao:
         texto += f"\n\n{i18n.t('rel.desde_ultima')}\n\n" + "\n".join(f"- {m}" for m in comparacao[:15])
@@ -192,8 +199,8 @@ def cmd_analisar(a) -> int:
         {
             "posicao": i,
             "descricao": c.descricao(),
-            "custo_brl": c.custo_brl,
-            "economia_brl": resultado.economia(c),
+            "custo": c.custo,
+            "economia": resultado.economia(c),
             "data_ida": c.data_ida,
             "data_volta": c.data_volta,
             "estrategias": sorted(c.estrategias),
@@ -202,7 +209,7 @@ def cmd_analisar(a) -> int:
                 {"id": o.id, "fonte": o.fonte, "tipo": o.tipo, "programa": o.programa, "trecho": o.trecho,
                  "pernas": [{"origem": p.origem, "destino": p.destino, "data": p.data, "partida": p.partida,
                              "voos": p.voos} for p in o.pernas],
-                 "preco_brl": o.preco_brl, "milhas": o.milhas, "taxas_brl": o.taxas_brl,
+                 "preco": o.preco, "milhas": o.milhas, "taxas": o.taxas,
                  "confirmado_ao_vivo": o.confirmado_ao_vivo, "link": o.link}
                 for o in c.opcoes
             ],
@@ -212,7 +219,7 @@ def cmd_analisar(a) -> int:
     ]
     (run / "ranking.json").write_text(json.dumps(ranking, ensure_ascii=False, indent=1), encoding="utf-8")
     if not a.sem_historico:
-        historico.gravar(opcoes)
+        historico.gravar(opcoes, moeda=pedido.moeda)
     if a.json:
         _json_out({"relatorio": str(run / "relatorio.md"), "top": ranking[: a.top]})
     else:
@@ -220,7 +227,7 @@ def cmd_analisar(a) -> int:
     return 0
 
 
-# --- utilitários para subagentes ------------------------------------------------------------------
+# --- utilities for subagents ---------------------------------------------------------------------
 
 def cmd_cache(a) -> int:
     c = Cache()
@@ -269,7 +276,7 @@ def cmd_milheiro(a) -> int:
     if a.acao == "mostrar":
         print(arq.read_text(encoding="utf-8"))
         return 0
-    # propor / salvar: YAML completo vindo de --arquivo ou stdin
+    # propor / salvar: full YAML from --arquivo or stdin
     novo_txt = sys.stdin.read() if a.arquivo == "-" else Path(a.arquivo).read_text(encoding="utf-8")
     try:
         milheiro_de_dict(yaml.safe_load(novo_txt) or {})
@@ -294,7 +301,7 @@ def cmd_dados(a) -> int:
 
 
 def cmd_diagnostico(a) -> int:
-    """Confere o ambiente e diz, para cada item, se está ok e como resolver."""
+    """Check the environment and say, for each item, whether it is OK and how to fix it."""
     import platform
     import shutil
 
@@ -309,10 +316,10 @@ def cmd_diagnostico(a) -> int:
         itens.append({"item": nome, "ok": ok, "detalhe": detalhe, "como_resolver": "" if ok else como_resolver})
 
     item("sistema", True, f"{platform.system()} {platform.release()} · Python {platform.python_version()}")
-    item("pasta de dados", DADOS.exists(), str(DADOS), "será criada no primeiro uso")
+    item("pasta de dados", DADOS.exists(), str(DADOS), "will be created on first use")
     node = shutil.which("npx")
-    item("node/npx (opcional)", bool(node), node or "não encontrado",
-         "Necessário só para LATAM Pass e confirmação ao vivo. Baixe a versão LTS: https://nodejs.org/pt/download")
+    item("node/npx (opcional)", bool(node), node or "not found",
+         "Only needed for LATAM Pass and live confirmation. Download the LTS: https://nodejs.org/en/download")
     from fontes.mcp_http import HEADERS
 
     http = httpx.Client(timeout=15)
@@ -323,34 +330,34 @@ def cmd_diagnostico(a) -> int:
                            ("internet: Google Flights", "https://www.google.com/travel/flights", False)]:
         try:
             r = http.post(url, headers=HEADERS, json=init) if mcp else http.get(url)
-            item(nome, r.status_code < 400, f"HTTP {r.status_code}", "Serviço respondeu com erro; tente mais tarde.")
+            item(nome, r.status_code < 400, f"HTTP {r.status_code}", "The service returned an error; try again later.")
         except httpx.HTTPError as e:
-            item(nome, False, type(e).__name__, "Verifique a conexão, VPN ou firewall da empresa.")
+            item(nome, False, type(e).__name__, "Check the connection, VPN or company firewall.")
     chave = bool(os.environ.get("SEATS_AERO_API_KEY"))
-    item("chave Seats.aero (opcional)", chave, "definida" if chave else "sem chave: milhas só para voos em até 60 dias",
-         "Opcional (Seats.aero Pro, US$ 9,99/mês): https://seats.aero/pro → Settings → API. "
+    item("chave Seats.aero (opcional)", chave, "set" if chave else "no key: miles only for flights within 60 days",
+         "Optional (Seats.aero Pro, US$ 9.99/month): https://seats.aero/pro → Settings → API. "
          "Depois rode no seu terminal o comando que a skill /farehunter:setup mostrar.")
     bruto = perfil_io.carregar_bruto()
-    item("perfil", bool(bruto.get("configurado")), "configurado" if bruto.get("configurado") else "não configurado",
-         "Rode /farehunter:profile")
+    item("perfil", bool(bruto.get("configurado")), "configured" if bruto.get("configurado") else "not configured",
+         "Run /farehunter:profile")
     avisos = carregar_milheiro().avisos_validade(date.today())
-    item("milheiro (CPM)", not avisos, "atualizado" if not avisos else "; ".join(avisos[:2]), "Rode /farehunter:miles")
+    item("milheiro (CPM)", not avisos, "up to date" if not avisos else "; ".join(avisos[:2]), "Run /farehunter:miles")
     _json_out({"ok_essencial": all(i["ok"] for i in itens if "opcional" not in i["item"] and i["item"] not in ("perfil", "milheiro (CPM)")),
                "itens": itens})
     return 0
 
 
 def cmd_chave(a) -> int:
-    """Grava uma chave no .env da pasta de dados, lendo do terminal sem mostrar (não passa pela conversa)."""
+    """Save a key into the data folder's .env, read from the terminal without echo (never passes through the chat)."""
     import getpass
 
     from infra.config import DADOS
 
     nomes = {"seats": "SEATS_AERO_API_KEY"}
     var = nomes[a.servico]
-    valor = (sys.stdin.readline() if a.stdin else getpass.getpass(f"Cole a chave {var} e tecle Enter: ")).strip()
+    valor = (sys.stdin.readline() if a.stdin else getpass.getpass(f"Paste your {var} and press Enter (it will not be shown): ")).strip()
     if not valor:
-        print("nada gravado", file=sys.stderr)
+        print("nothing saved", file=sys.stderr)
         return 1
     env = DADOS / ".env"
     DADOS.mkdir(parents=True, exist_ok=True)
@@ -360,7 +367,21 @@ def cmd_chave(a) -> int:
         env.chmod(0o600)
     except OSError:
         pass
-    print(f"✓ {var} gravada em {env}")
+    print(f"✓ {var} saved to {env}")
+    return 0
+
+
+def cmd_programas(a) -> int:
+    """List the program registry: miles programs (award search coverage, link type) and points programs."""
+    from infra.programas import carregar
+
+    reg = carregar()
+    _json_out({
+        "milhas": [{"id": p.id, "nome": p.nome, "cias": list(p.cias), "busca_de_resgates": bool(p.seats),
+                    "deep_link": p.link in ("smiles", "latam_pass", "azul")} for p in reg.milhas.values()],
+        "pontos": [{"id": p.id, "nome": p.nome, "moeda": p.moeda,
+                    "parceiros": {x.destino: x.proporcao for x in reg.parceiros_de(p.id)}} for p in reg.pontos.values()],
+    })
     return 0
 
 
@@ -405,13 +426,15 @@ def main(argv: list[str] | None = None) -> int:
     novo.add_argument("--flex", type=int)
     novo.add_argument("--pax", type=int)
     novo.add_argument("--cabine", default="economy")
-    novo.add_argument("--idioma", help="pt | en | es (idioma do relatório; padrão: o do perfil)")
-    novo.add_argument("--saldo", nargs="*", help="saldos de HOJE: smiles=45000 livelo=12000 (não ficam no perfil)")
+    novo.add_argument("--idioma", help="pt | en | es (report language; default: the profile's)")
+    novo.add_argument("--moeda", help="ISO 4217 currency for every price (default: the profile's)")
+    novo.add_argument("--pais", help="ISO 3166 country, point of sale for cash fares (default: the profile's)")
+    novo.add_argument("--saldo", nargs="*", help="TODAY's balances: smiles=45000 livelo=12000 (never stored in the profile)")
     novo.set_defaults(f=cmd_run_novo)
     reg = run.add_parser("registrar")
     reg.add_argument("--run", required=True)
     reg.add_argument("--fonte", required=True)
-    reg.add_argument("--arquivo", required=True, help="JSON com lista de opções normalizadas ('-' = stdin)")
+    reg.add_argument("--arquivo", required=True, help="JSON with a list of normalized options ('-' = stdin)")
     reg.set_defaults(f=cmd_run_registrar)
     fal = run.add_parser("falha")
     fal.add_argument("--run", required=True)
@@ -419,24 +442,24 @@ def main(argv: list[str] | None = None) -> int:
     fal.add_argument("--motivo", required=True)
     fal.set_defaults(f=cmd_run_falha)
 
-    sa = run.add_parser("saldos", help="grava os saldos informados para esta execução")
+    sa = run.add_parser("saldos", help="save the given balances for this run")
     sa.add_argument("--run", required=True)
     sa.add_argument("--saldo", nargs="*", default=[])
     sa.set_defaults(f=cmd_run_saldos)
-    op = run.add_parser("opcao", help="mostra uma opção pelo id")
+    op = run.add_parser("opcao", help="show one option by id")
     op.add_argument("--run", required=True)
     op.add_argument("--id", required=True)
     op.set_defaults(f=cmd_run_opcao)
-    cf = run.add_parser("confirmar", help="grava o resultado da confirmação ao vivo de uma opção")
+    cf = run.add_parser("confirmar", help="record the live-confirmation result of an option")
     cf.add_argument("--run", required=True)
     cf.add_argument("--id", required=True)
-    cf.add_argument("--via", required=True, help="ex.: playwright_smiles")
+    cf.add_argument("--via", required=True, help="e.g. playwright_smiles")
     cf.add_argument("--milhas", type=int)
     cf.add_argument("--taxas", type=float)
     cf.add_argument("--preco", type=float)
     cf.add_argument("--link")
     cf.add_argument("--indisponivel", action="store_true")
-    cf.add_argument("--obs", help="observação livre (ex.: preço lido no card, sem taxa)")
+    cf.add_argument("--obs", help="free-text note (e.g. price read on the card, no tax)")
     cf.set_defaults(f=cmd_run_confirmar)
 
     an = sub.add_parser("analisar")
@@ -461,30 +484,33 @@ def main(argv: list[str] | None = None) -> int:
     li.add_argument("--run")
     li.set_defaults(f=cmd_limite)
 
-    pe = sub.add_parser("perfil", help="status do perfil ou gravação das respostas da entrevista")
+    pe = sub.add_parser("perfil", help="profile status, or save the interview answers")
     pe.add_argument("acao", choices=["status", "salvar"])
-    pe.add_argument("--arquivo", default="-", help="JSON com as respostas (parcial; '-' = stdin)")
-    pe.add_argument("--simular", action="store_true", help="só mostra o diff, não grava")
+    pe.add_argument("--arquivo", default="-", help="JSON with the answers (partial; '-' = stdin)")
+    pe.add_argument("--simular", action="store_true", help="only show the diff, do not save")
     pe.set_defaults(f=cmd_perfil)
 
     mi = sub.add_parser("milheiro")
     mi.add_argument("acao", choices=["checar", "mostrar", "propor", "salvar"])
-    mi.add_argument("--arquivo", default="-", help="YAML completo proposto (propor/salvar); '-' = stdin")
+    mi.add_argument("--arquivo", default="-", help="full proposed YAML (propor/salvar); '-' = stdin")
     mi.set_defaults(f=cmd_milheiro)
 
-    dg = sub.add_parser("diagnostico", help="confere o ambiente e diz como resolver o que faltar")
+    dg = sub.add_parser("diagnostico", help="check the environment and explain how to fix what is missing")
     dg.set_defaults(f=cmd_diagnostico)
 
-    ch = sub.add_parser("chave", help="grava uma chave de API no .env da pasta de dados (rode no seu terminal)")
+    ch = sub.add_parser("chave", help="save an API key into the data folder's .env (run it in your own terminal)")
     ch.add_argument("servico", choices=["seats"])
-    ch.add_argument("--stdin", action="store_true", help="lê a chave da entrada padrão")
+    ch.add_argument("--stdin", action="store_true", help="read the key from standard input")
     ch.set_defaults(f=cmd_chave)
 
-    da = sub.add_parser("dados", help="mostra onde ficam os dados do usuário")
+    da = sub.add_parser("dados", help="show where the user's data lives")
     da.set_defaults(f=cmd_dados)
 
-    lk = sub.add_parser("link", help="deep link para emitir/buscar no site")
-    lk.add_argument("programa", choices=["smiles", "latam_pass", "azul", "google"])
+    pg = sub.add_parser("programas", help="list supported miles and points programs")
+    pg.set_defaults(f=cmd_programas)
+
+    lk = sub.add_parser("link", help="deep link to book/search on the site")
+    lk.add_argument("programa", help="miles program id from config/programas.yaml, or 'google'")
     lk.add_argument("--origem", required=True)
     lk.add_argument("--destino", required=True)
     lk.add_argument("--ida", required=True)
@@ -496,8 +522,8 @@ def main(argv: list[str] | None = None) -> int:
     no.add_argument("--fonte", required=True)
     no.add_argument("--entrada", required=True)
     no.add_argument("--saida")
-    no.add_argument("--trecho", default=None, help="ida | volta | ida_volta (quando a fonte não diz)")
-    no.add_argument("--pax", type=int, default=1, help="passageiros da busca, para converter preço total em por pessoa")
+    no.add_argument("--trecho", default=None, help="ida | volta | ida_volta (when the source does not say)")
+    no.add_argument("--pax", type=int, default=1, help="passengers in the search, to convert the total price to per person")
     no.set_defaults(f=cmd_normalizar)
 
     from fontes import registrar_comandos
