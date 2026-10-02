@@ -23,13 +23,13 @@ No fim entrega um ranking **na sua moeda**, com os links para você comprar ou e
 ### Opção A — pelo Claude Desktop (Mac / Windows, sem terminal)
 
 1. Instale o **Claude Desktop**: https://claude.ai/download. Entre com sua conta; o plano precisa incluir o Claude Code.
-2. Abra a aba **Code** e escolha uma pasta qualquer, por exemplo `Documentos/viagens`.
-3. Clique no botão **+** ao lado da caixa de mensagem → **Plugins** → **Add plugin**.
-4. No navegador de plugins, adicione o marketplace **`s0beran0/farehunter`** (o repositório no GitHub).
-5. Encontre **farehunter** na lista e clique em **Install**.
-6. Na caixa de mensagem, digite **`/farehunter:setup`**. Ele confere seu computador e ensina a instalar a única ferramenta obrigatória (**uv**), com o link ou o comando exato para o seu sistema.
+2. Abra as **Configurações** e, em *Personalização*, clique em **Plugins**.
+3. Clique em **+ Adicionar** (canto superior direito) → **Adicionar marketplace**.
+4. No campo **URL**, digite `s0beran0/farehunter` (ou `https://github.com/s0beran0/farehunter`), escolha **Usar "…"** e clique em **Sincronizar**.
+5. Na aba **Descobrir**, o **Farehunter** aparece. Clique em **Adicionar** ao lado dele.
+6. Abra a aba **Code**, escolha uma pasta qualquer (ex.: `Documentos/viagens`) e digite **`/farehunter:setup`**. Ele confere seu computador e ensina a instalar a única ferramenta obrigatória (**uv**), com o link ou o comando exato para o seu sistema.
 
-> **Prefere digitar?** Os passos 3 a 5 podem ser trocados por estes dois comandos na caixa de mensagem da aba Code:
+> **Prefere digitar?** Os passos 2 a 5 podem ser trocados por estes dois comandos na caixa de mensagem da aba Code:
 > ```
 > /plugin marketplace add s0beran0/farehunter
 > /plugin install farehunter@farehunter-marketplace
@@ -86,7 +86,7 @@ Ficam em `~/.farehunter/` (no Windows, `C:\Users\<você>\.farehunter\`):
 Atualizar ou reinstalar o plugin não apaga nada. Pergunte "onde ficam meus dados?" para ver o caminho exato.
 
 ## Atualizar
-No Claude Desktop (aba Code), clique em **+** → **Plugins** → **Manage plugins**, ou digite `/plugin`. Pelo terminal: `claude plugin update farehunter@farehunter-marketplace`.
+No Claude Desktop: **Configurações → Plugins → + Adicionar → Gerenciar marketplaces** e sincronize o **farehunter-marketplace** para baixar a versão nova (até lá, a lista de plugins continua mostrando a descrição antiga). Na aba Code também dá para digitar `/plugin`. Pelo terminal: `claude plugin update farehunter@farehunter-marketplace`.
 
 ## Limitações
 

@@ -23,13 +23,13 @@ You get a ranking in **your currency**, with links to book yourself.
 ### Option A — inside Claude Desktop (macOS / Windows, no terminal)
 
 1. Install **Claude Desktop** from https://claude.ai/download and sign in. Your plan must include Claude Code.
-2. Open the **Code** tab and pick any folder, e.g. `Documents/trips`.
-3. Click the **+** button next to the message box → **Plugins** → **Add plugin**.
-4. In the plugin browser, add the marketplace **`s0beran0/farehunter`** (the GitHub repository).
-5. Find **farehunter** in the list and click **Install**.
-6. In the message box, type **`/farehunter:setup`**. It checks your computer and walks you through the one required tool (**uv**), with the exact link or command for your system.
+2. Open **Settings** and, under *Customization*, click **Plugins**.
+3. Click **+ Add** (top right) → **Add marketplace**.
+4. In the **URL** field, type `s0beran0/farehunter` (or `https://github.com/s0beran0/farehunter`), choose **Use "…"** and click **Sync**.
+5. On the **Discover** tab, **Farehunter** now appears. Click **Add** next to it.
+6. Open the **Code** tab, pick any folder (e.g. `Documents/trips`) and type **`/farehunter:setup`**. It checks your computer and walks you through the one required tool (**uv**), with the exact link or command for your system.
 
-> **Prefer typing?** Steps 3–5 can be replaced with these two commands in the Code tab's message box:
+> **Prefer typing?** Steps 2–5 can be replaced with these two commands in the Code tab's message box:
 > ```
 > /plugin marketplace add s0beran0/farehunter
 > /plugin install farehunter@farehunter-marketplace
@@ -86,7 +86,7 @@ It lives in `~/.farehunter/` (Windows: `C:\Users\<you>\.farehunter\`):
 Updating or reinstalling the plugin never deletes it. Ask "where is my data?" to see the exact path.
 
 ## Update
-In Claude Desktop (Code tab), click **+** → **Plugins** → **Manage plugins**, or type `/plugin`. From a terminal: `claude plugin update farehunter@farehunter-marketplace`.
+In Claude Desktop: **Settings → Plugins → + Add → Manage marketplaces** and sync **farehunter-marketplace** to fetch the new version (the plugin list keeps showing the old description until you do). In the Code tab you can also type `/plugin`. From a terminal: `claude plugin update farehunter@farehunter-marketplace`.
 
 ## Limitations
 
