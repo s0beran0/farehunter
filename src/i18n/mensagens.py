@@ -127,7 +127,6 @@ MENSAGENS: dict[str, dict] = {
         "dica.promocoes_milhas": " Nessas datas também costumam aparecer bônus de transferência de pontos e compra de milhas com desconto.",
         "dica.alta_temporada": "**Alta temporada no destino:** as tarifas costumam ser mais altas nessas datas ({fonte})",
         "dica.dia_da_semana": "**Dia de voar:** saindo ou voltando de segunda a quarta costuma sair cerca de {pct}% mais barato que no fim de semana (o dia da compra quase não importa).",
-        "rel.alerta_google_passos": "Para ajudar a liberar o Google: 1) abra a rota no **seu** navegador: {link} 2) use o Google Flights normalmente por um ou dois minutos (mude datas, veja os voos); se aparecer \"não sou um robô\", resolva você mesmo 3) avise aqui que terminou, e eu tiro a pausa e refaço a busca. Não há garantia de que isso libere na hora, mas costuma ajudar.",
     },
     "en": {
         "aviso.nao_validadas": "{n} unvalidated option(s) were left out of the recommendation (cached award seats not confirmed on the site, or calendar prices without a specific flight).",
@@ -250,7 +249,6 @@ MENSAGENS: dict[str, dict] = {
         "dica.promocoes_milhas": " Those dates often bring points-transfer bonuses and discounted miles too.",
         "dica.alta_temporada": "**High season at the destination:** fares tend to be higher on these dates ({fonte})",
         "dica.dia_da_semana": "**Flying day:** leaving or returning Monday to Wednesday is usually about {pct}% cheaper than weekends (the day you buy barely matters).",
-        "rel.alerta_google_passos": "To help unblock Google: 1) open the route in **your** browser: {link} 2) use Google Flights normally for a minute or two (change dates, look at flights); if an \"I'm not a robot\" check appears, solve it yourself 3) tell me when you're done and I'll lift the pause and search again. It's not guaranteed to unblock right away, but it usually helps.",
     },
     "es": {
         "aviso.nao_validadas": "{n} opción(es) sin validar quedaron fuera de la recomendación (millas de caché no confirmadas en el sitio o precios de calendario sin vuelo específico).",
@@ -373,6 +371,5 @@ MENSAGENS: dict[str, dict] = {
         "dica.promocoes_milhas": " En esas fechas también suelen aparecer bonos de transferencia de puntos y millas con descuento.",
         "dica.alta_temporada": "**Temporada alta en el destino:** las tarifas suelen ser más altas en estas fechas ({fonte})",
         "dica.dia_da_semana": "**Día de vuelo:** salir o volver de lunes a miércoles suele costar cerca de {pct}% menos que el fin de semana (el día de compra casi no importa).",
-        "rel.alerta_google_passos": "Para ayudar a desbloquear Google: 1) abre la ruta en **tu** navegador: {link} 2) usa Google Flights normalmente uno o dos minutos (cambia fechas, mira vuelos); si aparece \"no soy un robot\", resuélvelo tú 3) avísame cuando termines y quito la pausa y repito la búsqueda. No está garantizado que se libere de inmediato, pero suele ayudar.",
     },
 }

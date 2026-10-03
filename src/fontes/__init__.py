@@ -75,33 +75,7 @@ def _cmd_recomendar(a) -> int:
     return 0
 
 
-def _cmd_google(a) -> int:
-    from fontes import google_flights
-
-    if a.acao == "status":
-        _imprimir(google_flights.estado_pausa())
-    elif a.acao == "liberar":
-        google_flights.liberar_pausa()
-        _imprimir({"liberado": True, **google_flights.estado_pausa()})
-    else:  # abrir: open the route in the user's own browser; the user does any verification themselves
-        import webbrowser
-
-        link = google_flights.link_google(a.origem, a.destino, a.ida, a.volta, a.moeda, a.pais)
-        aberto = webbrowser.open(link)
-        _imprimir({"aberto": aberto, "link": link})
-    return 0
-
-
 def registrar_comandos(sub) -> None:
-    gg = sub.add_parser("google", help="Google Flights pause after HTTP 429: status, open the route in the user's browser, release")
-    gg.add_argument("acao", choices=["status", "abrir", "liberar"])
-    gg.add_argument("--origem")
-    gg.add_argument("--destino")
-    gg.add_argument("--ida")
-    gg.add_argument("--volta")
-    gg.add_argument("--moeda", default="BRL")
-    gg.add_argument("--pais", default="BR")
-    gg.set_defaults(f=_cmd_google)
     rc = sub.add_parser("recomendar", help="whole search in one go: collect, validate, analyse (prints a short summary)")
     rc.add_argument("--run", required=True)
     rc.add_argument("--posicionamento", choices=["auto", "sim", "nao"], default="auto",
